@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "937522343788",
+    "project_id": "maru-prajapat-89e33",
+    "storage_bucket": "maru-prajapat-89e33.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:937522343788:android:d4a5f47e9e76d8e8ea4d49",
+        "android_client_info": {
+          "package_name": "com.avirastra.maruprajapat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDMnWn7sWNR6OKAf0Ou40sTJBw3YGj0OgQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
