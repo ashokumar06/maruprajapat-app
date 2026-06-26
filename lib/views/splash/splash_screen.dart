@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../config/theme_config.dart';
 import '../../services/auth_service.dart';
 import '../auth/login_screen.dart';
+import '../home/home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -36,16 +38,7 @@ class _SplashScreenState extends State<SplashScreen> {
     if (user != null) {
       // If user is authenticated, route to Home (Dashboard)
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => Scaffold(
-            body: Center(
-              child: Text(
-                'स्वागत है! (Welcome)',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-            ),
-          ),
-        ),
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
       );
     } else {
       // If not authenticated, route to LoginScreen
@@ -58,7 +51,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // Strict white theme background
+      backgroundColor: ThemeConfig.background,
       body: SafeArea(
         child: Center(
           child: AnimatedOpacity(
@@ -74,11 +67,10 @@ class _SplashScreenState extends State<SplashScreen> {
                   height: 180,
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) {
-                    // Fallback if asset isn't loaded/copied yet
                     return const Icon(
                       Icons.palette_outlined,
                       size: 100,
-                      color: Color(0xFF6366F1),
+                      color: ThemeConfig.primary,
                     );
                   },
                 ),

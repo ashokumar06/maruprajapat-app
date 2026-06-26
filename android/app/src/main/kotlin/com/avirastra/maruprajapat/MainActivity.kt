@@ -1,4 +1,4 @@
-package com.example.maru_prajapat
+package com.avirastra.maruprajapat
 
 import io.flutter.embedding.android.FlutterActivity
 

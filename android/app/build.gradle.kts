@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.maru_prajapat"
+    namespace = "com.avirastra.maruprajapat"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

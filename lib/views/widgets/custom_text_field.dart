@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../config/theme_config.dart';
 
 class CustomTextField extends StatelessWidget {
   final TextEditingController controller;
@@ -32,7 +33,7 @@ class CustomTextField extends StatelessWidget {
         keyboardType: keyboardType,
         validator: validator,
         style: const TextStyle(
-          color: Color(0xFF0F172A), // Slate 900
+          color: ThemeConfig.textPrimary,
           fontSize: 16.0,
           fontWeight: FontWeight.w500,
         ),
@@ -40,54 +41,53 @@ class CustomTextField extends StatelessWidget {
           labelText: labelText,
           hintText: hintText,
           labelStyle: const TextStyle(
-            color: Color(0xFF64748B), // Slate 500
+            color: ThemeConfig.textSecondary,
             fontSize: 14.0,
             fontWeight: FontWeight.w400,
           ),
           hintStyle: const TextStyle(
-            color: Color(0xFF94A3B8), // Slate 400
+            color: ThemeConfig.textHint,
             fontSize: 14.0,
           ),
           prefixIcon: prefixIcon != null
               ? Icon(
                   prefixIcon,
-                  color: const Color(0xFF64748B),
+                  color: ThemeConfig.textSecondary,
                   size: 20,
                 )
               : null,
           suffixIcon: suffixIcon,
           filled: true,
-          fillColor: const Color(0xFFF8FAFC), // Slate 50 background
+          fillColor: const Color(0xFFFDF6F0), // Soft pinkish cream matching mockup
           contentPadding: const EdgeInsets.symmetric(
-            vertical: 16.0,
+            vertical: 18.0,
             horizontal: 16.0,
           ),
-          // Minimalist border style (no heavy dividing lines, simple rounded shape)
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.circular(10.0),
             borderSide: const BorderSide(
-              color: Color(0xFFE2E8F0), // Slate 200
+              color: Colors.transparent, // No border when unselected
               width: 1.0,
             ),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.circular(10.0),
             borderSide: const BorderSide(
-              color: Color(0xFF6366F1), // Indigo 500
-              width: 1.5,
+              color: ThemeConfig.primary, // Orange border when selected
+              width: 2.0,
             ),
           ),
           errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.circular(10.0),
             borderSide: const BorderSide(
-              color: Color(0xFFEF4444), // Red 500
+              color: ThemeConfig.error,
               width: 1.0,
             ),
           ),
           focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.circular(10.0),
             borderSide: const BorderSide(
-              color: Color(0xFFEF4444),
+              color: ThemeConfig.error,
               width: 1.5,
             ),
           ),

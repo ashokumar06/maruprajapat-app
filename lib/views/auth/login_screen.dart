@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import '../../config/theme_config.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
+import '../home/home_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -99,14 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (context) => Scaffold(
-          body: Center(
-            child: Text(
-              'स्वागत है! (Welcome)',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ),
-        ),
+        builder: (context) => const HomeScreen(),
       ),
     );
   }
@@ -114,212 +109,219 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // Strict white background
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 24),
-                // Heading without heavy dividers
-                const Text(
-                  'लॉगिन करें',
-                  style: TextStyle(
-                    color: Color(0xFF0F172A), // Slate 900
-                    fontSize: 32.0,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'मारू प्रजापत समुदाय में आपका स्वागत है',
-                  style: TextStyle(
-                    color: Color(0xFF64748B), // Slate 500
-                    fontSize: 16.0,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                const SizedBox(height: 48),
+      backgroundColor: ThemeConfig.background,
+      body: Stack(
+        children: [
+          // Background decorative circles (warm clay tones)
+          Positioned(
+            top: -100,
+            right: -80,
+            child: Container(
+              width: 280,
+              height: 280,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: ThemeConfig.primaryLight.withValues(alpha: 0.12),
+              ),
+            ),
+          ),
+          Positioned(
+            top: -40,
+            right: -40,
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: ThemeConfig.primary.withValues(alpha: 0.06),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -60,
+            left: -60,
+            child: Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: ThemeConfig.accent.withValues(alpha: 0.08),
+              ),
+            ),
+          ),
 
-                if (_errorMessage != null) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12.0),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEF2F2), // Red 50
-                      borderRadius: BorderRadius.circular(8.0),
+          SafeArea(
+            child: SingleChildScrollView(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 28.0, vertical: 24.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 32),
+
+                    // App Logo
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                ThemeConfig.primary.withValues(alpha: 0.12),
+                            blurRadius: 20.0,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: Padding(
+                          padding: const EdgeInsets.all(10.0),
+                          child: Image.asset(
+                            'assets/images/logo.png',
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Icon(
+                                Icons.palette_outlined,
+                                size: 50,
+                                color: ThemeConfig.primary,
+                              );
+                            },
+                          ),
+                        ),
+                      ),
                     ),
-                    child: Text(
-                      _errorMessage!,
-                      style: const TextStyle(
-                        color: Color(0xFFEF4444), // Red 500
+                    const SizedBox(height: 24),
+
+                    // Main Heading
+                    const Text(
+                      'यहाँ लॉगिन करें',
+                      style: TextStyle(
+                        color: ThemeConfig.primary,
+                        fontSize: 28.0,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Subtitle
+                    const Text(
+                      'मारू प्रजापत समुदाय में आपका स्वागत है',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: ThemeConfig.textSecondary,
                         fontSize: 14.0,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
+                    const SizedBox(height: 28),
 
-                // Input fields
-                CustomTextField(
-                  controller: _emailController,
-                  labelText: 'ईमेल पता (Email)',
-                  hintText: 'example@email.com',
-                  keyboardType: TextInputType.emailAddress,
-                  prefixIcon: Icons.email_outlined,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'कृपया ईमेल दर्ज करें';
-                    }
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                        .hasMatch(value)) {
-                      return 'कृपया सही ईमेल दर्ज करें';
-                    }
-                    return null;
-                  },
-                ),
-                CustomTextField(
-                  controller: _passwordController,
-                  labelText: 'पासवर्ड (Password)',
-                  isPassword: true,
-                  prefixIcon: Icons.lock_outline,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'कृपया पासवर्ड दर्ज करें';
-                    }
-                    if (value.length < 6) {
-                      return 'पासवर्ड कम से कम 6 अक्षरों का होना चाहिए';
-                    }
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: 24),
-
-                // Login action button
-                CustomButton(
-                  text: 'प्रवेश करें (Login)',
-                  onPressed: _handleLogin,
-                  isLoading: _isLoading,
-                ),
-
-                const SizedBox(height: 24),
-
-                // Minimalist visual separator without heavy line lines
-                const Center(
-                  child: Text(
-                    'अथवा (Or)',
-                    style: TextStyle(
-                      color: Color(0xFF94A3B8), // Slate 400
-                      fontSize: 14.0,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Google Sign In button (Premium flat white button, no heavy cards)
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: OutlinedButton(
-                    onPressed: _isGoogleLoading ? null : _handleGoogleSignIn,
-                    style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.0),
-                      ),
-                      side: const BorderSide(color: Color(0xFFE2E8F0)),
-                      backgroundColor: Colors.white,
-                      elevation: 0,
-                    ),
-                    child: _isGoogleLoading
-                        ? const SizedBox(
-                            height: 24,
-                            width: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Color(0xFF6366F1),
-                              ),
-                            ),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              // Google symbol fallback icon
-                              Icon(
-                                Icons.g_mobiledata,
-                                size: 30,
-                                color: Colors.blue.shade700,
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'गूगल से लॉगिन करें (Google Sign In)',
-                                style: TextStyle(
-                                  color: Color(0xFF0F172A),
-                                  fontSize: 15.0,
-                                  fontWeight: FontWeight.w600,
+                    if (_errorMessage != null) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12.0),
+                        decoration: BoxDecoration(
+                          color: ThemeConfig.error.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10.0),
+                          border: Border.all(
+                            color: ThemeConfig.error.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline,
+                                color: ThemeConfig.error, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _errorMessage!,
+                                style: const TextStyle(
+                                  color: ThemeConfig.error,
+                                  fontSize: 13.0,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
-                            ],
-                          ),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Anonymous browse action button
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: TextButton(
-                    onPressed: _isAnonLoading ? null : _handleAnonymousSignIn,
-                    style: TextButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.0),
-                      ),
-                      foregroundColor: const Color(0xFF64748B),
-                    ),
-                    child: _isAnonLoading
-                        ? const SizedBox(
-                            height: 24,
-                            width: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Color(0xFF6366F1),
-                              ),
                             ),
-                          )
-                        : const Text(
-                            'अतिथि के रूप में ब्राउज़ करें (Browse as Guest)',
-                            style: TextStyle(
-                              fontSize: 15.0,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Email Field
+                    CustomTextField(
+                      controller: _emailController,
+                      labelText: 'ईमेल',
+                      hintText: 'ईमेल दर्ज करें',
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'कृपया ईमेल दर्ज करें';
+                        }
+                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                            .hasMatch(value)) {
+                          return 'कृपया सही ईमेल दर्ज करें';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 4),
+
+                    // Password Field
+                    CustomTextField(
+                      controller: _passwordController,
+                      labelText: 'पासवर्ड',
+                      hintText: 'पासवर्ड दर्ज करें',
+                      isPassword: true,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'कृपया पासवर्ड दर्ज करें';
+                        }
+                        if (value.length < 6) {
+                          return 'पासवर्ड कम से कम 6 अक्षरों का होना चाहिए';
+                        }
+                        return null;
+                      },
+                    ),
+
+                    // Forgot password link
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          // Handle forgot password
+                        },
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                        ),
+                        child: const Text(
+                          'पासवर्ड भूल गए?',
+                          style: TextStyle(
+                            color: ThemeConfig.primary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13.0,
                           ),
-                  ),
-                ),
-
-                const SizedBox(height: 32),
-
-                // Routing to Signup screen
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'नया खाता बनाना है? ',
-                      style: TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 14.0,
+                        ),
                       ),
                     ),
+
+                    const SizedBox(height: 12),
+
+                    // Login Button
+                    CustomButton(
+                      text: 'लॉगिन करें',
+                      onPressed: _handleLogin,
+                      isLoading: _isLoading,
+                      backgroundColor: ThemeConfig.primary,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Create new account link
                     GestureDetector(
                       onTap: () {
                         Navigator.of(context).push(
@@ -328,22 +330,206 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         );
                       },
-                      child: const Text(
-                        'रजिस्टर करें (Sign Up)',
-                        style: TextStyle(
-                          color: Color(0xFF6366F1),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14.0,
+                      child: RichText(
+                        text: const TextSpan(
+                          text: 'नया खाता बनाना है? ',
+                          style: TextStyle(
+                            color: ThemeConfig.textSecondary,
+                            fontSize: 14.0,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: 'रजिस्टर करें',
+                              style: TextStyle(
+                                color: ThemeConfig.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14.0,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
+
+                    const SizedBox(height: 28),
+
+                    // Divider with "अथवा" (Or)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 1,
+                            color: ThemeConfig.divider,
+                          ),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Text(
+                            'अथवा',
+                            style: TextStyle(
+                              color: ThemeConfig.textSecondary,
+                              fontSize: 13.0,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Container(
+                            height: 1,
+                            color: ThemeConfig.divider,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Google Sign In Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: OutlinedButton(
+                        onPressed:
+                            _isGoogleLoading ? null : _handleGoogleSignIn,
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14.0),
+                          ),
+                          side: BorderSide(
+                              color: ThemeConfig.border.withValues(alpha: 0.6)),
+                          backgroundColor: Colors.white,
+                          elevation: 0,
+                        ),
+                        child: _isGoogleLoading
+                            ? const SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    ThemeConfig.primary,
+                                  ),
+                                ),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // Google "G" logo using proper colors
+                                  SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CustomPaint(
+                                      painter: _GoogleGLogoPainter(),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Text(
+                                    'गूगल से लॉगिन करें',
+                                    style: TextStyle(
+                                      color: ThemeConfig.textPrimary,
+                                      fontSize: 15.0,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Anonymous Browse Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: TextButton(
+                        onPressed:
+                            _isAnonLoading ? null : _handleAnonymousSignIn,
+                        style: TextButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14.0),
+                          ),
+                          backgroundColor: ThemeConfig.primaryLight
+                              .withValues(alpha: 0.12),
+                          foregroundColor: ThemeConfig.secondary,
+                        ),
+                        child: _isAnonLoading
+                            ? const SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    ThemeConfig.secondary,
+                                  ),
+                                ),
+                              )
+                            : const Text(
+                                'अतिथि के रूप में आगे बढ़ें',
+                                style: TextStyle(
+                                  fontSize: 15.0,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
+}
+
+/// Proper Google "G" logo painter with official brand colors
+class _GoogleGLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double w = size.width;
+    final double h = size.height;
+    final double cx = w / 2;
+    final double cy = h / 2;
+    final double r = w * 0.45; // outer radius
+    final double thickness = w * 0.2;
+
+    final Paint arcPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = thickness
+      ..strokeCap = StrokeCap.butt;
+
+    final Rect arcRect =
+        Rect.fromCircle(center: Offset(cx, cy), radius: r);
+
+    // Red arc (top-left quadrant area, roughly from 150° to 225°)
+    arcPaint.color = const Color(0xFFEA4335);
+    canvas.drawArc(arcRect, -2.35, 1.15, false, arcPaint);
+
+    // Yellow arc (bottom-left)
+    arcPaint.color = const Color(0xFFFBBC05);
+    canvas.drawArc(arcRect, -3.55, 1.2, false, arcPaint);
+
+    // Green arc (bottom-right)
+    arcPaint.color = const Color(0xFF34A853);
+    canvas.drawArc(arcRect, -4.85, 1.3, false, arcPaint);
+
+    // Blue arc (top-right, partial)
+    arcPaint.color = const Color(0xFF4285F4);
+    canvas.drawArc(arcRect, -0.55, 0.5, false, arcPaint);
+
+    // Blue horizontal bar (the "G" bar)
+    final Paint barPaint = Paint()
+      ..color = const Color(0xFF4285F4)
+      ..style = PaintingStyle.fill;
+    final double barH = thickness;
+    canvas.drawRect(
+      Rect.fromLTWH(cx - 1, cy - barH / 2, w * 0.48, barH),
+      barPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

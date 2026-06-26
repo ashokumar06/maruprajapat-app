@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'config/env_config.dart';
+import 'config/theme_config.dart';
 import 'services/firebase_service.dart';
 import 'views/splash/splash_screen.dart';
 
@@ -35,10 +36,7 @@ class MyApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        useMaterial3: true,
-      ),
+      theme: ThemeConfig.lightTheme,
       home: const SplashScreen(),
     );
   }
