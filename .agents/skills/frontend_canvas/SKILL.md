@@ -46,33 +46,84 @@ class AppColors {
 
 Always decouple the presentation layer (Widgets) from data sources (Firebase). Implement a **Repository Pattern**:
 
-### A. Authentication Repository
-Handle all Firebase Auth functions inside a dedicated service:
+### A. Authentication Repository / Service
+Implement the Authentication Service to support Google Sign-In, Email & Password, and Anonymous Sign-In:
 
 ```dart
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
-class AuthRepository {
+class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+  User? get currentUser => _auth.currentUser;
 
-  Future<UserCredential> signInWithEmail(String email, String password) async {
+  // 1. Email & Password Sign Up (with verification email)
+  Future<UserCredential> signUpWithEmailPassword({
+    required String email,
+    required String password,
+  }) async {
     try {
-      return await _auth.signInWithEmailAndPassword(email: email, password: password);
+      final cred = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      await cred.user?.sendEmailVerification();
+      return cred;
     } on FirebaseAuthException catch (e) {
-      throw _handleAuthError(e);
+      throw _handleError(e);
     }
   }
 
-  Future<void> signOut() => _auth.signOut();
-
-  String _handleAuthError(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'user-not-found': return 'No user found with this email.';
-      case 'wrong-password': return 'Incorrect password.';
-      default: return e.message ?? 'An error occurred during authentication.';
+  // 2. Email & Password Sign In
+  Future<UserCredential> signInWithEmailPassword({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      return await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+    } on FirebaseAuthException catch (e) {
+      throw _handleError(e);
     }
+  }
+
+  // 3. Google Sign In
+  Future<UserCredential> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) throw Exception('Google sign in cancelled.');
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      return await _auth.signInWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // 4. Anonymous Sign In
+  Future<UserCredential> signInAnonymously() async {
+    try {
+      return await _auth.signInAnonymously();
+    } on FirebaseAuthException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<void> signOut() async {
+    await _auth.signOut();
+    await _googleSignIn.signOut();
+  }
+
+  String _handleError(FirebaseAuthException e) {
+    return e.message ?? 'Authentication error occurred.';
   }
 }
 ```

@@ -1,7 +1,6 @@
 {
   "project_info": {
     "project_number": "937522343788",
-    "firebase_url": "https://maru-prajapat-89e33-default-rtdb.asia-southeast1.firebasedatabase.app",
     "project_id": "maru-prajapat-89e33",
     "storage_bucket": "maru-prajapat-89e33.firebasestorage.app"
   },
@@ -13,12 +12,7 @@
           "package_name": "com.avirastra.maruprajapat"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "937522343788-hatfgrcboiep0gh1v5n1359ibed2thp2.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
           "current_key": "AIzaSyDMnWn7sWNR6OKAf0Ou40sTJBw3YGj0OgQ"
@@ -26,12 +20,7 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "937522343788-hatfgrcboiep0gh1v5n1359ibed2thp2.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }
