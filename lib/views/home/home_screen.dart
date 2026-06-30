@@ -1,7 +1,20 @@
 import 'package:flutter/material.dart';
-import '../../services/auth_service.dart';
+import 'package:provider/provider.dart';
 import '../../config/theme_config.dart';
-import '../auth/login_screen.dart';
+import '../../providers/home_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../models/post_model.dart';
+import '../profile/profile_screen.dart';
+import '../explore/explore_screen.dart';
+import 'members_list_screen.dart';
+import 'community_screen.dart';
+import 'events_screen.dart';
+import 'complaints_screen.dart';
+import 'notices_screen.dart';
+import 'market_screen.dart';
+import 'schemes_screen.dart';
+import 'admin_approvals_screen.dart';
+import 'all_people_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,190 +24,676 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool _isLoggingOut = false;
-
-  Future<void> _handleLogout() async {
-    setState(() {
-      _isLoggingOut = true;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<HomeProvider>().fetchHomeData();
     });
-
-    try {
-      await AuthService().signOut();
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('लॉगआउट विफल: $e'),
-          backgroundColor: ThemeConfig.error,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoggingOut = false;
-        });
-      }
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = AuthService().currentUser;
-    final userLabel = currentUser?.email ??
-        (currentUser?.isAnonymous == true ? 'अतिथि' : 'उपयोगकर्ता');
-
     return Scaffold(
       backgroundColor: ThemeConfig.background,
-      appBar: AppBar(
-        title: const Text(
-          'मारू प्रजापत',
-          style: TextStyle(
-            color: ThemeConfig.textPrimary,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          _isLoggingOut
-              ? const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(ThemeConfig.primary),
-                      ),
+      body: SafeArea(
+        child: Consumer2<HomeProvider, AuthProvider>(
+          builder: (context, homeProvider, authProvider, child) {
+            if (homeProvider.isLoading && homeProvider.notices.isEmpty && homeProvider.posts.isEmpty) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final user = authProvider.currentUserModel;
+            final displayText = (user != null && user.fullName.isNotEmpty) 
+                ? user.fullName 
+                : 'श्री मारू प्रजापत समाज';
+
+            return CustomScrollView(
+              slivers: [
+                // 1. Top Bar
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const CircleAvatar(
+                              radius: 20,
+                              backgroundColor: Colors.white,
+                              backgroundImage: AssetImage('assets/images/logo.png'),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              displayText,
+                              style: const TextStyle(
+                                color: ThemeConfig.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: const Badge(
+                                backgroundColor: ThemeConfig.error,
+                                label: Text('3'),
+                                child: Icon(Icons.notifications_outlined, color: ThemeConfig.textPrimary),
+                              ),
+                              onPressed: () {},
+                            ),
+                            const SizedBox(width: 8),
+                            InkWell(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                                );
+                              },
+                              child: CircleAvatar(
+                                radius: 18,
+                                backgroundColor: ThemeConfig.primaryLight,
+                                backgroundImage: (user?.profilePhotoUrl != null && user!.profilePhotoUrl.isNotEmpty)
+                                    ? NetworkImage(user.profilePhotoUrl)
+                                    : null,
+                                child: (user?.profilePhotoUrl == null || user!.profilePhotoUrl.isEmpty)
+                                    ? const Icon(Icons.person, color: ThemeConfig.primary)
+                                    : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                )
-              : IconButton(
-                  icon: const Icon(Icons.logout,
-                      color: ThemeConfig.secondary),
-                  tooltip: 'लॉगआउट',
-                  onPressed: _handleLogout,
                 ),
-        ],
-      ),
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // App Logo
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: ThemeConfig.primary.withValues(alpha: 0.15),
-                        blurRadius: 24.0,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                    border: Border.all(
-                        color: ThemeConfig.primaryLight.withValues(alpha: 0.3),
-                        width: 2.0),
+
+                // 2. Search Bar & Filter Row (Mockup Style)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const MembersListScreen()),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(30),
+                                border: Border.all(color: ThemeConfig.border),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.search, color: ThemeConfig.textHint, size: 20),
+                                  SizedBox(width: 12),
+                                  Text(
+                                    'खोजें...',
+                                    style: TextStyle(color: ThemeConfig.textHint, fontSize: 15),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: ThemeConfig.border),
+                          ),
+                          child: const Icon(Icons.tune, color: ThemeConfig.primary, size: 20),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: ClipOval(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Image.asset(
-                        'assets/images/logo.png',
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(
-                            Icons.palette_outlined,
-                            size: 60,
-                            color: ThemeConfig.primary,
-                          );
+                ),
+                
+                // 3. Important Notices (महत्वपूर्ण सूचना)
+                if (homeProvider.notices.isNotEmpty) ...[
+                  SliverToBoxAdapter(
+                    child: _buildSectionHeader('महत्वपूर्ण सूचना', 'सभी देखें >'),
+                  ),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 140,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: homeProvider.notices.length,
+                        itemBuilder: (context, index) {
+                          final notice = homeProvider.notices[index];
+                          // Map category to icon and color
+                          IconData icon = Icons.description;
+                          Color color = Colors.blue;
+                          if (notice.category == 'scholarship') {
+                            icon = Icons.school;
+                            color = ThemeConfig.primary;
+                          } else if (notice.category == 'blood_request') {
+                            icon = Icons.bloodtype;
+                            color = ThemeConfig.error;
+                          } else if (notice.category == 'meeting') {
+                            icon = Icons.groups;
+                            color = ThemeConfig.success;
+                          }
+                          return _buildNoticeCard(notice.title, notice.content, icon, color);
                         },
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 28),
+                ],
 
-                // Welcome message
-                const Text(
-                  'स्वागत है!',
-                  style: TextStyle(
-                    color: ThemeConfig.textPrimary,
-                    fontSize: 28.0,
+                // 4. Banner Carousel
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Container(
+                      height: 140,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: const LinearGradient(
+                          colors: [ThemeConfig.primaryLight, ThemeConfig.primary],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            bottom: 16,
+                            left: 16,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'हमारी संस्कृति, हमारी पहचान',
+                                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                                ),
+                                const Text(
+                                  'एकजुट समाज, सशक्त समाज',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                ElevatedButton(
+                                  onPressed: () {},
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: ThemeConfig.primary,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                    minimumSize: const Size(0, 32),
+                                  ),
+                                  child: const Text('अधिक जानें', style: TextStyle(fontSize: 12)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // 5. Quick Actions (त्वरित कार्य)
+                SliverToBoxAdapter(
+                  child: _buildSectionHeader('त्वरित कार्य', 'सभी देखें >'),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: GridView.count(
+                      crossAxisCount: 5,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: [
+                        _buildActionIcon(Icons.people, 'सदस्य सूची', () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const MembersListScreen()));
+                        }),
+                        _buildActionIcon(Icons.account_balance, 'समाज', () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunityScreen()));
+                        }),
+                        _buildActionIcon(Icons.event, 'कार्यक्रम', () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const EventsScreen()));
+                        }),
+                        _buildActionIcon(Icons.storefront, 'व्यवसाय', () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const ExploreScreen()));
+                        }),
+                        _buildActionIcon(Icons.report_problem, 'शिकायत', () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const ComplaintsScreen()));
+                        }),
+                        _buildActionIcon(Icons.campaign, 'नोटिस', () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const NoticesScreen()));
+                        }),
+                        _buildActionIcon(Icons.shopping_bag, 'बाजार', () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const MarketScreen()));
+                        }),
+                        _buildActionIcon(Icons.school, 'योजनाएं', () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const SchemesScreen()));
+                        }),
+                        _buildActionIcon(Icons.more_horiz, 'और सेवांए', () {
+                          _showMoreServicesSheet(context, user);
+                        }),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // 6. Community Updates (समाज अपडेट)
+                SliverToBoxAdapter(
+                  child: _buildSectionHeader('समाज अपडेट', 'सभी पोस्ट देखें >'),
+                ),
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final post = homeProvider.posts[index];
+                      return _buildPostCard(post);
+                    },
+                    childCount: homeProvider.posts.length,
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 80)), // Bottom padding
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, String actionLabel) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: ThemeConfig.textPrimary,
+            ),
+          ),
+          Text(
+            actionLabel,
+            style: const TextStyle(
+              fontSize: 14,
+              color: ThemeConfig.primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoticeCard(String title, String desc, IconData icon, Color color) {
+    return Container(
+      width: 240,
+      margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: Colors.white, size: 16),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: ThemeConfig.textPrimary,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: Text(
+              desc,
+              style: const TextStyle(fontSize: 12, color: ThemeConfig.textSecondary, height: 1.3),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                '15 जून 2026 | 11:00 AM',
+                style: TextStyle(fontSize: 10, color: ThemeConfig.textHint),
+              ),
+              Icon(Icons.chevron_right, color: color, size: 18),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
-                // Subtitle
-                const Text(
-                  'मारू प्रजापत समुदाय में आपका स्वागत है',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: ThemeConfig.textSecondary,
-                    fontSize: 15.0,
-                    fontWeight: FontWeight.w500,
+  Widget _buildActionIcon(IconData icon, String label, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: ThemeConfig.primaryLight.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: ThemeConfig.primary, size: 24),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, color: ThemeConfig.textPrimary),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMoreServicesSheet(BuildContext context, dynamic user) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        final isAdmin = user?.role == 'admin' || user?.role == 'superadmin';
+        final isMemberOrAdmin = user?.role == 'member' || isAdmin;
+        return Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'और सेवाएं (More Services)',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: ThemeConfig.textPrimary),
                   ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  )
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(color: ThemeConfig.divider),
+              const SizedBox(height: 8),
+              
+              // Standard Services
+              GridView.count(
+                shrinkWrap: true,
+                crossAxisCount: 4,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _buildMoreServiceItem(context, Icons.favorite, 'विवाह', () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('वैवाहिक सेवा जल्द ही उपलब्ध होगी।')),
+                    );
+                  }),
+                  _buildMoreServiceItem(context, Icons.bloodtype, 'रक्त दान', () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('रक्तदान सेवा जल्द ही उपलब्ध होगी।')),
+                    );
+                  }),
+                  _buildMoreServiceItem(context, Icons.account_balance_outlined, 'मन्दिर/मठ', () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('मन्दिर सूची जल्द ही उपलब्ध होगी।')),
+                    );
+                  }),
+                  _buildMoreServiceItem(context, Icons.work, 'नौकरियाँ', () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('रोजगार सूचनाएं जल्द ही उपलब्ध होंगी।')),
+                    );
+                  }),
+                ],
+              ),
+
+              if (isAdmin) ...[
+                const SizedBox(height: 24),
+                const Divider(color: ThemeConfig.divider),
+                const SizedBox(height: 12),
+                const Text(
+                  'प्रशासनिक कार्य (Admin Controls)',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThemeConfig.primary),
                 ),
                 const SizedBox(height: 12),
-
-                // User label
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 8.0),
-                  decoration: BoxDecoration(
-                    color: ThemeConfig.primaryLight.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(20.0),
-                  ),
-                  child: Text(
-                    userLabel,
-                    style: const TextStyle(
-                      color: ThemeConfig.secondary,
-                      fontSize: 14.0,
-                      fontWeight: FontWeight.w600,
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
+                        label: const Text('सदस्यता अनुमोदन', style: TextStyle(color: Colors.white)),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const AdminApprovalsScreen()),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: ThemeConfig.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
                     ),
+                  ],
+                ),
+              ],
+              if (isMemberOrAdmin) ...[
+                const SizedBox(height: 24),
+                const Divider(color: ThemeConfig.divider),
+                const SizedBox(height: 12),
+                const Text(
+                  'विशेष सेवाएं (Special Directory)',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThemeConfig.primary),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.people_outline, color: ThemeConfig.primary),
+                        label: const Text('सभी प्रोफाइल (All Profiles)', style: TextStyle(fontWeight: FontWeight.bold)),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const AllPeopleScreen()),
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: ThemeConfig.primary,
+                          side: const BorderSide(color: ThemeConfig.primary),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMoreServiceItem(BuildContext context, IconData icon, String label, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: ThemeConfig.primary, size: 28),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: ThemeConfig.textPrimary, fontWeight: FontWeight.w500),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPostCard(PostModel post) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 0,
+      color: ThemeConfig.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: ThemeConfig.divider),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: ThemeConfig.border,
+                  backgroundImage: post.authorPhoto != null ? NetworkImage(post.authorPhoto!) : null,
+                  child: post.authorPhoto == null ? const Icon(Icons.person, color: Colors.white) : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            post.authorName ?? 'अज्ञात',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: ThemeConfig.success.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'सदस्य',
+                              style: TextStyle(color: ThemeConfig.success, fontSize: 10),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Text(
+                        '2 घंटे पहले',
+                        style: TextStyle(color: ThemeConfig.textSecondary, fontSize: 12),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 48),
-
-                // Logout Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: _isLoggingOut ? null : _handleLogout,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF6E7D8),
-                      foregroundColor: ThemeConfig.secondary,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18.0),
-                      ),
-                    ),
-                    child: const Text(
-                      'लॉगआउट करें',
-                      style: TextStyle(
-                        fontSize: 16.0,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
+                const Icon(Icons.more_vert, color: ThemeConfig.textSecondary),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              post.textContent ?? '',
+              style: const TextStyle(fontSize: 15, color: ThemeConfig.textPrimary),
+            ),
+            if (post.mediaUrl != null && post.mediaUrl!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(post.mediaUrl!, fit: BoxFit.cover),
+              ),
+            ],
+            const SizedBox(height: 16),
+            const Divider(color: ThemeConfig.divider),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.favorite, color: ThemeConfig.error, size: 20),
+                    const SizedBox(width: 4),
+                    Text('${post.likesCount}', style: const TextStyle(color: ThemeConfig.textSecondary)),
+                  ],
+                ),
+                Text('${post.commentsCount} टिप्पणियाँ', style: const TextStyle(color: ThemeConfig.textSecondary, fontSize: 13)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                TextButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.thumb_up_outlined, color: ThemeConfig.textSecondary),
+                  label: const Text('लाइक', style: TextStyle(color: ThemeConfig.textSecondary)),
+                ),
+                TextButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.chat_bubble_outline, color: ThemeConfig.textSecondary),
+                  label: const Text('टिप्पणी', style: TextStyle(color: ThemeConfig.textSecondary)),
+                ),
+                TextButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.share_outlined, color: ThemeConfig.textSecondary),
+                  label: const Text('शेयर', style: TextStyle(color: ThemeConfig.textSecondary)),
                 ),
               ],
             ),
-          ),
+          ],
         ),
       ),
     );

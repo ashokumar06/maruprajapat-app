@@ -44,3 +44,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 .env
+*/.venv/
+*?venv/
+__pycache__/
+backend/.env
+venv
+
+backend/

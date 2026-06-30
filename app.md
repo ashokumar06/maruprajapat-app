@@ -1,7 +1,7 @@
 # 🏺 Maru Prajapat Application — Specification v0.2
 
 > **Platform:** Flutter (Android)
-> **Backend:** Firebase (Sirf Free / Spark Plan Services)
+> **Backend:** FastAPI + PostgreSQL | Firebase Auth/FCM/RTDB | Cloudflare R2
 > **Default Language:** Hindi (`hi`) | Secondary: English (`en`)
 > **Last Updated:** June 2025
 
@@ -1566,4 +1566,588 @@ This architecture enables the Maru Prajapat Application to remain scalable, cost
 
 
 *Specification v0.2 | Maru Prajapat Application | June 2025*
-*Designed for Firebase Spark Plan (Free Tier) — No Paid Services*
+
+---
+
+## 33. Backend Architecture — FastAPI + PostgreSQL
+
+### 33.1 Architecture Overview
+
+```
+Flutter App ←→ FastAPI Backend ←→ PostgreSQL (Primary DB)
+                    ↓
+           Firebase Auth (Token Verification)
+           Firebase RTDB (Real-time: Chat, Presence)
+           Firebase FCM (Push Notifications)
+           Cloudflare R2 (Media/Image Storage)
+```
+
+### 33.2 Technology Stack
+
+| Technology | Purpose |
+|-----------|---------|
+| **FastAPI** | REST API framework (Python) |
+| **PostgreSQL 16** | Primary relational database |
+| **SQLAlchemy 2.0** | Async ORM for PostgreSQL |
+| **Alembic** | Database schema migrations |
+| **Firebase Auth** | User authentication (JWT token verification) |
+| **Firebase RTDB** | Real-time data (chat messages, typing indicators, presence) |
+| **Firebase FCM** | Push notifications (unlimited, free) |
+| **Cloudflare R2** | Media storage with auto WebP conversion |
+| **Pydantic v2** | Request/response validation |
+| **Docker Compose** | Local dev environment (PostgreSQL + API) |
+
+### 33.3 Key Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| **No Celery** | FastAPI BackgroundTasks is sufficient; keeps stack simple |
+| **No WebSocket** | Firebase RTDB handles real-time; simpler deployment |
+| **PostgreSQL over Firestore** | Better queries, joins, transactions, no read limits |
+| **Firebase Auth stays** | Already integrated in Flutter; backend only verifies tokens |
+| **Firebase RTDB for chat** | Real-time message delivery without WS; metadata in PostgreSQL |
+| **R2 over Firebase Storage** | No bandwidth limits; S3-compatible; cost-effective |
+
+### 33.4 Backend Folder Structure
+
+```
+backend/
+├── app/
+│   ├── main.py              # FastAPI entry point
+│   ├── config.py             # Pydantic Settings
+│   ├── database.py           # Async SQLAlchemy
+│   ├── models/               # 16 SQLAlchemy ORM models
+│   ├── schemas/              # Pydantic validation schemas
+│   ├── api/
+│   │   ├── deps.py           # Auth & DB dependencies
+│   │   ├── router.py         # Aggregated router
+│   │   └── v1/               # Versioned endpoints
+│   ├── services/
+│   │   ├── firebase_auth.py  # Token verify + RTDB helpers
+│   │   ├── fcm_service.py    # Push notifications
+│   │   ├── r2_service.py     # R2 file upload
+│   │   └── image_service.py  # WebP conversion
+│   ├── core/                 # Security, exceptions, pagination
+│   └── middleware/           # CORS
+├── alembic/                  # DB migrations
+├── docker-compose.yml
+└── requirements.txt
+```
+
+### 33.5 Database Schema (PostgreSQL Tables)
+
+| Table | Description |
+|-------|-------------|
+| `users` | User profiles, roles, FCM tokens |
+| `posts` | Community feed with soft delete |
+| `comments` | Nested comments on posts |
+| `likes` | Post/comment likes |
+| `notices` | Pinned notices with categories |
+| `events` | Events with registration tracking |
+| `event_registrations` | QR-based attendance |
+| `membership_requests` | Approval workflow |
+| `complaints` | Status-based complaint tracking |
+| `marketplace_products` | Product listings |
+| `orders` | Purchase orders |
+| `matrimony_profiles` | Matrimony biodata |
+| `blood_donors` | Blood donor registry |
+| `donation_campaigns` | Fundraising campaigns |
+| `donations` | Individual donations |
+| `scholarships` | Scholarship listings |
+| `scholarship_applications` | Applications |
+| `family_trees` | Family tree nodes |
+| `businesses` | Business directory |
+| `forms` | Dynamic form definitions |
+| `form_fields` | Form field configuration |
+| `form_responses` | Submitted responses (JSONB) |
+| `notification_logs` | FCM notification history |
+| `chat_groups` | Group metadata (RTDB for messages) |
+| `message_logs` | Chat history for search |
+
+### 33.6 Firebase RTDB Usage
+
+Firebase Realtime Database is used specifically for:
+
+| Feature | RTDB Path | PostgreSQL |
+|---------|-----------|------------|
+| Chat messages | `/chats/{groupId}/messages/` | `message_logs` (backup) |
+| Typing indicators | `/typing/{groupId}/{userId}` | — |
+| Online presence | `/presence/{userId}` | `users.last_login_at` |
+| Live notifications | `/user_notifications/{userId}` | `notification_logs` |
+
+### 33.7 API Authentication Flow
+
+```
+Flutter App → Firebase Auth → Get ID Token
+Flutter App → FastAPI API (Bearer Token in header)
+FastAPI → firebase_admin.auth.verify_id_token()
+FastAPI → Query PostgreSQL for user profile
+FastAPI → Return response with role-based data
+```
+
+### 33.8 Running the Backend
+
+```bash
+# Start PostgreSQL
+docker compose up -d postgres
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run migrations
+alembic upgrade head
+
+# Start server
+uvicorn app.main:app --reload --port 8000
+
+# API Docs: http://localhost:8000/docs
+```
+
+---
+
+## 34. UI Screen Design Specification
+
+> Based on official Maru Prajapat app mockups. All text is in **Hindi**. Theme: warm orange (#E67E22 primary) with white/cream backgrounds.
+
+### 34.1 Design System
+
+#### Color Palette
+
+| Token | Hex | Usage |
+|-------|-----|-------|
+| `primary` | `#E67E22` | Buttons, active tabs, icons, badges |
+| `primaryDark` | `#D35400` | AppBar gradient end, pressed state |
+| `primaryLight` | `#FFF3E8` | Card backgrounds, light tints |
+| `secondary` | `#A65E2E` | Secondary text, clay brown accents |
+| `background` | `#FFFFFF` | Screen backgrounds |
+| `surface` | `#FFF8F0` | Card surfaces, input backgrounds |
+| `textPrimary` | `#1A1A1A` | Headings, body text |
+| `textSecondary` | `#757575` | Subtitles, captions, timestamps |
+| `success` | `#27AE60` | Approved badges, success states |
+| `error` | `#E74C3C` | Reject badges, error states, red icons |
+| `warning` | `#F39C12` | Pending status, warning badges |
+| `divider` | `#E0E0E0` | Line separators |
+
+#### Typography
+
+| Style | Font | Size | Weight |
+|-------|------|------|--------|
+| `h1` | Noto Sans Devanagari | 24sp | Bold |
+| `h2` | Noto Sans Devanagari | 20sp | SemiBold |
+| `h3` | Noto Sans Devanagari | 18sp | SemiBold |
+| `bodyLarge` | Noto Sans Devanagari | 16sp | Regular |
+| `bodyMedium` | Noto Sans Devanagari | 14sp | Regular |
+| `caption` | Noto Sans Devanagari | 12sp | Regular |
+| `label` | Noto Sans Devanagari | 12sp | Medium |
+| `button` | Noto Sans Devanagari | 16sp | SemiBold |
+
+#### Spacing & Radius
+
+| Token | Value |
+|-------|-------|
+| `spacingXs` | 4dp |
+| `spacingSm` | 8dp |
+| `spacingMd` | 12dp |
+| `spacingLg` | 16dp |
+| `spacingXl` | 24dp |
+| `radiusSm` | 8dp |
+| `radiusMd` | 12dp |
+| `radiusLg` | 16dp |
+| `radiusFull` | 999dp |
+
+---
+
+### 34.2 Bottom Navigation Bar (All Screens)
+
+5 tabs fixed at bottom across the app:
+
+| # | Icon | Hindi Label | Route |
+|---|------|-------------|-------|
+| 1 | 🏠 Home outline | होम | `/home` |
+| 2 | 🔍 Search outline | अन्वेषण | `/explore` |
+| 3 | ➕ Circular orange FAB | — | `/create-post` (center, elevated) |
+| 4 | 📋 Document outline | फॉर्म | `/forms` |
+| 5 | 👤 Person outline | प्रोफाइल | `/profile` |
+
+- Active tab: `primary` orange color
+- Inactive tab: `textSecondary` grey
+- Center "+" button: Circular, `primary` orange, elevated shadow, slightly raised above bar
+
+---
+
+### 34.3 Screen 1 — Home (होम)
+
+**API:** `GET /api/v1/posts/feed`, `GET /api/v1/notices/important`
+
+#### Layout (top to bottom):
+
+1. **Top Bar**
+   - Left: Maru Prajapat logo (circular image) + "MARU PRAJAPAT" text in orange
+   - Right: Notification bell icon (with red badge count) + Profile avatar (circular)
+
+2. **Search Bar**
+   - Rounded pill shape, background `surface`
+   - Placeholder: "खोजें..."
+   - Right: Filter icon (hamburger)
+
+3. **महत्वपूर्ण सूचना (Important Notices)** — Horizontal scrollable cards
+   - Section header: "महत्वपूर्ण सूचना" + "सभी देखें >" link
+   - Cards with rounded corners (`radiusMd`), light tint backgrounds:
+     - Blue tint card: सामान्य सूचना (General Notice) — 📄 blue icon
+     - Orange tint card: छात्रवृत्ति अलर्ट (Scholarship Alert) — 📜 orange icon
+     - Red tint card: रक्त आवश्यकता (Blood Requirement) — 🩸 red icon
+   - Each card shows: icon, title, 2-line description, date, right chevron ">"
+
+4. **Banner Carousel** — Auto-swipeable
+   - Full-width rounded card with gradient overlay
+   - Cultural image background (pottery/architecture)
+   - Text overlay: "हमारी संस्कृति, हमारी पहचान" (subtitle) + "एकजुट समाज, सशक्त समाज" (title bold)
+   - "अधिक जानें" CTA button (white background, primary text)
+   - Dot indicators below
+
+5. **त्वरित कार्य (Quick Actions)** — 2-row grid
+   - Section header: "त्वरित कार्य" + "सभी देखें >"
+   - Row 1 (5 icons): सदस्यता आवेदन, छात्रवृत्ति आवेदन, व्यवसाय पंजीकरण, विवाह पंजीकरण, रक्त दान अनुरोध
+   - Row 2 (5 icons): कार्यक्रम पंजीकरण, शिकायत दर्ज करें, नोटिस देखें, बाजार, और सेवाएं
+   - Each: circular orange-tint icon (40dp) + label below (caption size)
+
+6. **समाज अपडेट (Community Updates)** — Feed
+   - Section header: "समाज अपडेट" + "सभी पोस्ट देखें >"
+   - Post cards with:
+     - Author avatar + name + role badge (e.g., "सदस्य" green badge) + time + location
+     - 3-dot menu icon (top right)
+     - Text content (bodyMedium)
+     - Image gallery (horizontal scroll, rounded corners)
+     - Engagement row: ❤️🧡 like count + "23 टिप्पणियाँ" + "12 शेयर"
+     - Action bar: 👍 लाइक | 💬 टिप्पणी | ↗️ शेयर
+
+---
+
+### 34.4 Screen 2 — Explore (अन्वेषण)
+
+**API:** `GET /api/v1/explore/categories`, `GET /api/v1/businesses`
+
+#### Layout:
+
+1. **Title**: "अन्वेषण"
+2. **Search Bar**: "खोज करें..." with search icon
+3. **श्रेणियां (Categories)** — 2×4 grid of circular icons
+   - समाचार, शिक्षा, खेल, विज्ञापन
+   - शिक्षा बाजार, रोजगार, कार्यक्रम, खेल
+   - Each: orange-tint circle icon + label below
+
+4. **लोकप्रिय व्यवसाय (Popular Businesses)** — Vertical list
+   - Section header + "सभी देखें >"
+   - Each item: thumbnail image (rounded) + business name + category + rating stars + address
+   - Divider between items
+
+---
+
+### 34.5 Screen 3 — Post Details (पोस्ट विवरण)
+
+**API:** `GET /api/v1/posts/{id}`, `GET /api/v1/posts/{id}/comments`
+
+#### Layout:
+
+1. **AppBar**: Back arrow + "पोस्ट विवरण"
+2. **Author Row**: Avatar + "गजेन्द्र कुमार प्रजापत" + "प्रजापत" badge
+3. **Post Content**: Multi-line text (bodyLarge)
+4. **Image Gallery**: Full-width images, horizontally scrollable, rounded
+5. **Engagement Stats**: "❤️🧡 124" + "23 टिप्पणियाँ" + "12 शेयर"
+6. **Action Bar**: लाइक | टिप्पणी | शेयर (icon + label each)
+7. **Divider**
+8. **Comments Section**: Nested thread view
+   - Each comment: avatar + name + time + text
+   - Reply/like per comment
+   - "और टिप्पणियां देखें" load more
+
+---
+
+### 34.6 Screen 4 — Events (कार्यक्रम)
+
+**API:** `GET /api/v1/events`
+
+#### Layout:
+
+1. **Title**: "कार्यक्रम"
+2. **Tab Bar**: अगामी (Upcoming) | सभी कार्यक्रम (All) — orange underline active
+3. **Event Cards** — Vertical list:
+   - Thumbnail image (left or top)
+   - Event title (h3, bold)
+   - Date + Time row (icon + text)
+   - Location row (icon + text)
+   - "विवरण देखें" button (outlined, primary)
+   - Divider between cards
+
+---
+
+### 34.7 Screen 5 — Scholarships (छात्रवृत्ति)
+
+**API:** `GET /api/v1/scholarships`
+
+#### Layout:
+
+1. **Title**: "छात्रवृत्ति"
+2. **Tab Bar**: मुख्य | भी कार्यक्रम | पूर्ण
+3. **Scholarship Cards** — Vertical list:
+   - Scholarship name (h3)
+   - "अंतिम तिथि:" deadline date
+   - Status/type badge
+   - "विवरण देखें" button
+
+---
+
+### 34.8 Screen 6 — Notices (नोटिस)
+
+**API:** `GET /api/v1/notices`
+
+#### Layout:
+
+1. **Title**: "नोटिस"
+2. **Tab Bar**: भर | पुन | प्रोटिफाइल (All | Unread | Pinned)
+3. **Notice List** — Each item:
+   - Orange/grey icon (left)
+   - Title (bold)
+   - 1-line description preview
+   - Timestamp (right aligned, caption)
+   - Divider between items
+
+---
+
+### 34.9 Screen 7 — Messages (संदेश)
+
+**Real-time via Firebase RTDB. API:** `GET /api/v1/chat/groups`
+
+#### Layout:
+
+1. **Title**: "संदेश"
+2. **Search bar**: (optional)
+3. **Conversation List** — Each row:
+   - Profile avatar (circular, 48dp)
+   - Name (bold) + last message preview (1-line, grey)
+   - Timestamp (top-right, caption)
+   - Unread badge (orange circle with count, if unread)
+   - Divider between rows
+
+---
+
+### 34.10 Screen 8 — Create Post (पोस्ट बनाएं)
+
+**API:** `POST /api/v1/posts`, `POST /api/v1/upload/image`
+
+#### Layout:
+
+1. **AppBar**: ✕ close icon + "पोस्ट बनाएं" title + "पोस्ट करें" button (primary filled)
+2. **Author Row**: Avatar + name + badge
+3. **Text Input**: Large textarea, "आप क्या साझा करना चाहते हैं?" placeholder
+4. **Media Attachment Bar** — Horizontal row of icons:
+   - 📷 फोटो | 🎥 वीडियो | 📄 दस्तावेज | 🏷️ टैग | 📎 फाइल
+   - Each: rounded icon button with label below
+5. **श्रेणी चुनें (Select Category)** — Dropdown
+6. **टैग जोड़ें (वैकल्पिक)** — Tag input field
+
+---
+
+### 34.11 Screen 9 — Forms (फॉर्म)
+
+**API:** `GET /api/v1/forms`, `GET /api/v1/forms/{id}`, `POST /api/v1/forms/{id}/responses`
+
+#### Forms List Layout:
+
+1. **Title**: "फॉर्म"
+2. **Tab Bar**: सभी फॉर्म | सक्रिय | पुराने
+3. **Form Cards** — Vertical list:
+   - Orange icon (left) + form title
+   - 1-line description
+   - Status badge + chevron ">"
+
+#### Form Detail/Fill Layout:
+
+1. **AppBar**: Back + "फॉर्म विवरण"
+2. **Form Title**: "छात्रवृत्ति आवेदन फॉर्म"
+3. **Progress**: Step indicator (e.g., "1/4")
+4. **Section Header**: "व्यक्तिगत जानकारी"
+5. **Dynamic Fields** rendered by type:
+   - `text_single`: Text input with label (e.g., "नाम", "पिता का नाम")
+   - `date`: Date picker field (e.g., "जन्म तिथि" → 15/06/2004)
+   - `radio`: Radio buttons (e.g., "लिंग" → पुरुष / स्त्री)
+   - `dropdown`: Dropdown selector
+   - `file_upload`: Upload button with preview
+6. **Bottom Actions**: "सबसे करें" (Save) + "आगे बढ़ें (1/4)" (Next, primary filled)
+
+---
+
+### 34.12 Screen 10 — Complaint Registration (शिकायत दर्ज करें)
+
+**API:** `POST /api/v1/complaints`
+
+#### Layout:
+
+1. **AppBar**: Back + "शिकायत दर्ज करें"
+2. **शिकायत का प्रकार चुनें** — Horizontal scrollable chips:
+   - सामाजिक | प्रशासनिक | शैक्षणिक | आर्थिक | अन्य
+   - Active chip: primary filled, others: outlined
+3. **Form Fields**:
+   - विषय (Subject) — text input
+   - विवरण (Description) — multiline textarea with "अपनी शिकायत विस्तार से लिखें..." placeholder
+   - विवरण प्रकार (Detail dropdown) — optional
+   - संलग्नक (Attachments) — upload button, "फोटो जोड़ें सही है" hint
+4. **Bottom Actions**: "सबसे करें" (Save) + "शिकायत दर्ज करें" (Submit, primary filled)
+
+---
+
+### 34.13 Screen 11 — My Applications (मेरे आवेदन)
+
+**API:** `GET /api/v1/memberships/my`, `GET /api/v1/scholarship-applications/my`
+
+#### Layout:
+
+1. **AppBar**: Back + "मेरे आवेदन"
+2. **Tab Bar**: समीक्षा (Under Review) | आवेदित (Applied) | पूर्ण (Complete)
+3. **Application Cards** — Vertical list:
+   - Status icon (left, colored by status)
+   - Application name (bold)
+   - Application ID (caption: "आवेदन ID: MP20250415")
+   - Date applied
+   - Status badge (right): समीक्षा (orange) | अनुमोदित (green) | अस्वीकृत (red)
+   - Divider between items
+
+---
+
+### 34.14 Screen 12 — Profile (प्रोफाइल)
+
+**API:** `GET /api/v1/auth/me`
+
+#### Layout:
+
+1. **AppBar**: Back + "प्रोफाइल" + Settings gear icon (right)
+2. **Profile Header**:
+   - Large circular avatar (80dp) with camera edit overlay
+   - Name: "गजेन्द्र कुमार प्रजापत" (h2, bold)
+   - Role badge: "सदस्य" (green pill)
+   - Member ID: "सदस्य ID: MP12580"
+3. **Stats Row** — 3 columns centered:
+   - 56 पोस्ट | 342 कनेक्शन | 128 ???
+4. **Menu Items** — Vertical list with icons + chevrons:
+   - 📝 मेरी पोस्ट (My Posts)
+   - ✏️ मेरी प्रोफाइल संपादित (Edit Profile)
+   - 📋 मेरे आवेदन (My Applications)
+   - 💬 मेरा संदेश (My Messages)
+   - 🔧 ऑनर और सेवाएं (Honours & Services)
+   - 📄 बेच की गई पोस्ट (Saved Posts)
+   - ℹ️ मेरी जानकारी (My Info)
+   - 🔔 मेरी सूचनाएं (My Notifications)
+5. **लॉगआउट** button — Red outlined, full-width at bottom
+
+---
+
+### 34.15 Screen 13 — Notifications (सूचनाएं)
+
+**API:** `GET /api/v1/notifications`
+
+#### Layout:
+
+1. **Title**: "सूचनाएं"
+2. **Tab Bar**: सभी (All) | अपठित (Unread)
+3. **Notification Items** — Each:
+   - Orange/colored icon (left, based on notification type)
+   - Title (bold)
+   - 2-line body text
+   - Timestamp (caption)
+   - Unread indicator (orange dot on left, if unread)
+   - Types: छात्रवृत्ति अलर्ट, कार्यक्रम अलर्ट, अनुमोदन, सदस्यता अनुमोदित
+
+---
+
+### 34.16 Screen 14 — Settings (सेटिंग्स)
+
+**Route:** `/settings`
+
+#### Layout:
+
+1. **AppBar**: Back + "सेटिंग्स"
+2. **Menu Items** — Vertical list:
+   - 👤 खाता जानकारी (Account Info)
+   - 🔔 सूचना सेटिंग्स (Notification Settings)
+   - 🔒 गोपनीयता (Privacy)
+   - 🌐 भाषा (Language)
+   - ❓ सहायता और समर्थन (Help & Support)
+   - 📱 डिवाइस अनुमतियाँ (Device Permissions)
+   - ℹ️ ऐप्स के बारे में v1.0.0 (About App)
+   - ⭐ हमें रेट करें (Rate Us)
+3. **लॉगआउट** button — Red outlined, full-width
+
+---
+
+### 34.17 Navigation Map
+
+```
+App Launch
+    │
+    └── Splash Screen (logo, 2s)
+         │
+         ├── Not Logged In → Login Screen
+         │                      ├── Google Sign-In
+         │                      ├── Email/Password Login
+         │                      └── Guest Mode
+         │
+         └── Logged In → Home (होम)
+                           │
+              ┌────────────┼────────────┐────────────┐────────────┐
+              │            │            │            │            │
+           होम        अन्वेषण      + बनाएं      फॉर्म      प्रोफाइल
+           (Home)     (Explore)   (Create)    (Forms)    (Profile)
+              │            │            │            │            │
+              ├─ Notices   ├─ Search    ├─ Create    ├─ Form List ├─ Edit Profile
+              ├─ Events    ├─ Category  │  Post      ├─ Fill Form ├─ My Posts
+              ├─ Feed      ├─ Business  │            │            ├─ My Apps
+              │            │  Directory │            │            ├─ Messages
+              │            │            │            │            ├─ Settings
+              │            │            │            │            └─ Notifications
+              │
+         Secondary Screens (via Quick Actions):
+              ├─ सदस्यता आवेदन (Membership Application)
+              ├─ छात्रवृत्ति (Scholarships)
+              ├─ व्यवसाय पंजीकरण (Business Registration)
+              ├─ विवाह पंजीकरण (Matrimony)
+              ├─ रक्त दान (Blood Donation)
+              ├─ कार्यक्रम (Events)
+              ├─ शिकायत दर्ज करें (Complaint)
+              ├─ नोटिस (Notices)
+              ├─ बाजार (Marketplace)
+              └─ और सेवाएं (More Services)
+```
+
+---
+
+### 34.18 API Endpoints Required for All Screens
+
+| Screen | Endpoint | Method |
+|--------|----------|--------|
+| Home — Notices | `/api/v1/notices/important` | GET |
+| Home — Feed | `/api/v1/posts/feed` | GET |
+| Explore — Categories | `/api/v1/explore/categories` | GET |
+| Explore — Businesses | `/api/v1/businesses` | GET |
+| Post Detail | `/api/v1/posts/{id}` | GET |
+| Post Comments | `/api/v1/posts/{id}/comments` | GET |
+| Create Post | `/api/v1/posts` | POST |
+| Upload Image | `/api/v1/upload/image` | POST |
+| Events | `/api/v1/events` | GET |
+| Event Detail | `/api/v1/events/{id}` | GET |
+| Event Register | `/api/v1/events/{id}/register` | POST |
+| Scholarships | `/api/v1/scholarships` | GET |
+| Scholarship Apply | `/api/v1/scholarships/{id}/apply` | POST |
+| Notices | `/api/v1/notices` | GET |
+| Forms List | `/api/v1/forms` | GET |
+| Form Detail | `/api/v1/forms/{id}` | GET |
+| Form Submit | `/api/v1/forms/{id}/responses` | POST |
+| Complaints | `/api/v1/complaints` | POST |
+| My Applications | `/api/v1/applications/my` | GET |
+| Profile | `/api/v1/auth/me` | GET |
+| Update Profile | `/api/v1/auth/me` | PATCH |
+| Notifications | `/api/v1/notifications` | GET |
+| FCM Token | `/api/v1/auth/fcm-token` | POST |
+| Messages (groups) | `/api/v1/chat/groups` | GET |
+| Users Admin | `/api/v1/users` | GET |
+
+*Specification v0.3 | Maru Prajapat Application | June 2025*

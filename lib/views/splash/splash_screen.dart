@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../config/theme_config.dart';
-import '../../services/auth_service.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 import '../auth/login_screen.dart';
-import '../home/home_screen.dart';
+import '../main/main_shell.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -34,11 +35,11 @@ class _SplashScreenState extends State<SplashScreen> {
   void _checkAuthAndNavigate() {
     if (!mounted) return;
 
-    final user = AuthService().currentUser;
-    if (user != null) {
-      // If user is authenticated, route to Home (Dashboard)
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.isAuthenticated) {
+      // If user is authenticated, route to MainShell (Dashboard)
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        MaterialPageRoute(builder: (context) => const MainShell()),
       );
     } else {
       // If not authenticated, route to LoginScreen

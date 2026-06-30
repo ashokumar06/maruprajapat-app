@@ -31,18 +31,18 @@ class UserModel {
   factory UserModel.fromJson(Map<String, dynamic> json, String id) {
     return UserModel(
       uid: id,
-      fullName: json['fullName'] ?? '',
-      fatherName: json['fatherName'] ?? '',
+      fullName: json['full_name'] ?? json['fullName'] ?? '',
+      fatherName: json['father_name'] ?? json['fatherName'] ?? '',
       village: json['village'] ?? '',
       district: json['district'] ?? '',
       gotra: json['gotra'] ?? '',
       role: json['role'] ?? 'guest',
-      isVerified: json['isVerified'] ?? false,
-      isBanned: json['isBanned'] ?? false,
-      profilePhotoUrl: json['profilePhotoUrl'] ?? '',
-      contactNumber: json['contactNumber'] ?? '',
-      createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'].toString())
+      isVerified: json['is_verified'] ?? json['isVerified'] ?? false,
+      isBanned: json['is_banned'] ?? json['isBanned'] ?? false,
+      profilePhotoUrl: json['profile_photo_url'] ?? json['profilePhotoUrl'] ?? '',
+      contactNumber: json['phone'] ?? json['contactNumber'] ?? '',
+      createdAt: (json['created_at'] != null || json['createdAt'] != null)
+          ? DateTime.tryParse((json['created_at'] ?? json['createdAt']).toString())
           : null,
     );
   }

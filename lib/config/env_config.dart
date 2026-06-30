@@ -20,4 +20,6 @@ class EnvConfig {
   static String get cfR2BucketName => dotenv.env['CF_R2_BUCKET_NAME'] ?? '';
 
   static String get cfR2PublicUrl => dotenv.env['CF_R2_PUBLIC_URL'] ?? '';
+
+  static String get apiUrl => dotenv.env['API_URL'] ?? 'http://127.0.0.1:8000/api/v1';
 }
