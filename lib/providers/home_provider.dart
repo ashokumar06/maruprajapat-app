@@ -53,4 +53,12 @@ class HomeProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  void updatePostLocally(PostModel updatedPost) {
+    final index = _posts.indexWhere((p) => p.id == updatedPost.id);
+    if (index != -1) {
+      _posts[index] = updatedPost;
+      notifyListeners();
+    }
+  }
 }

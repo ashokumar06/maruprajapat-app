@@ -786,8 +786,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           finalPostType = 'video';
         }
       }
-
-      final resolvedMediaUrl = finalPostType == 'image' ? uploadedUrl : null;
+ 
+      final resolvedMediaUrl = (uploadedUrl != null && uploadedUrl.isNotEmpty) ? uploadedUrl : null;
       final resolvedYoutubeUrl = ytUrl.isNotEmpty ? ytUrl : null;
 
       if (mounted) {
@@ -1033,7 +1033,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 child: Row(
                   children: [
                     _buildTypeTab('text', Icons.article_outlined, 'समाचार'),
-                    _buildTypeTab('poll', Icons.poll_outlined, 'पोल'),
                     _buildTypeTab(
                       'achievement',
                       Icons.campaign_outlined,
@@ -1052,7 +1051,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               // Title Field
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.grey.shade200),
                 ),
@@ -1087,7 +1086,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               // Description Field
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.grey.shade200),
                 ),
@@ -1221,25 +1220,112 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     Colors.blue,
                     _showLocationDialog,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   _buildOtherOptionButton(
-                    'भावना / इमोजी',
+                    'पोल जोड़ें',
+                    Icons.poll_outlined,
+                    Colors.orange,
+                    () {
+                      setState(() {
+                        _selectedPostType = 'poll';
+                        _currentStep = 3;
+                      });
+                      _saveLocalDraft();
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  _buildOtherOptionButton(
+                    'भावना',
                     Icons.sentiment_satisfied_alt,
                     Colors.green,
                     _showFeelingsDialog,
                   ),
                 ],
               ),
+
+              // Render Poll Preview if selected type is poll
+              if (_selectedPostType == 'poll') ...[
+                const SizedBox(height: 16),
+                const Text(
+                  'पोल पूर्वावलोकन (Poll Preview)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: ThemeConfig.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _pollQuestionController.text.isNotEmpty
+                            ? _pollQuestionController.text
+                            : 'आपकी क्या राय है?',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: ThemeConfig.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ..._pollOptionControllers.map((ctrl) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.radio_button_unchecked, size: 16, color: Colors.grey),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    ctrl.text.isNotEmpty ? ctrl.text : 'विकल्प',
+                                    style: const TextStyle(fontSize: 13, color: ThemeConfig.textPrimary),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () {
+                            setState(() => _currentStep = 3);
+                          },
+                          icon: const Icon(Icons.edit, size: 14),
+                          label: const Text('बदलाव करें (Edit Poll)', style: TextStyle(fontSize: 12)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 16),
 
               // Pin toggle if Admin
               if (isAdmin) ...[
-                Card(
-                  elevation: 0,
-                  color: Colors.white,
-                  shape: RoundedRectangleBorder(
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.grey.shade200),
+                    border: Border.all(color: Colors.grey.shade200),
                   ),
                   child: SwitchListTile(
                     title: const Text(
@@ -2069,7 +2155,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isActive ? ThemeConfig.primary : Colors.grey.shade200,
@@ -2110,8 +2196,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           style: const TextStyle(color: ThemeConfig.textPrimary, fontSize: 12),
         ),
         style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
-          side: BorderSide(color: Colors.grey.shade200),
+          backgroundColor: Colors.transparent,
+          side: BorderSide(color: Colors.grey.shade300),
           padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
@@ -2122,7 +2208,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Widget _buildTypeTab(String type, IconData icon, String label) {
     final isSelected = _selectedPostType == type;
     final color = isSelected ? Colors.white : Colors.grey.shade700;
-    final bg = isSelected ? ThemeConfig.primary : Colors.white;
+    final bg = isSelected ? ThemeConfig.primary : Colors.transparent;
     final border = isSelected ? ThemeConfig.primary : Colors.grey.shade300;
 
     return Padding(

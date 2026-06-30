@@ -16,6 +16,8 @@ class PostModel {
   final double? latitude;
   final double? longitude;
   final DateTime? createdAt;
+  final List<String>? pollOptions;
+  final Map<String, dynamic>? pollVotes;
 
   PostModel({
     required this.id,
@@ -35,6 +37,8 @@ class PostModel {
     this.latitude,
     this.longitude,
     this.createdAt,
+    this.pollOptions,
+    this.pollVotes,
   });
 
   factory PostModel.fromJson(Map<String, dynamic> json) {
@@ -61,6 +65,12 @@ class PostModel {
           : null,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString())
+          : null,
+      pollOptions: json['poll_options'] != null
+          ? List<String>.from(json['poll_options'].map((x) => x.toString()))
+          : null,
+      pollVotes: json['poll_votes'] != null
+          ? Map<String, dynamic>.from(json['poll_votes'])
           : null,
     );
   }

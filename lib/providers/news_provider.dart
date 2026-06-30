@@ -129,4 +129,26 @@ class NewsProvider extends ChangeNotifier {
     }
     return false;
   }
+
+  Future<PostModel?> votePoll(int postId, int optionIndex) async {
+    try {
+      final client = ApiClient().dio;
+      final response = await client.post(
+        '/api/v1/posts/$postId/vote',
+        queryParameters: {'option_index': optionIndex},
+      );
+      if (response.statusCode == 200) {
+        final updatedPost = PostModel.fromJson(response.data);
+        final index = _trendingPosts.indexWhere((p) => p.id == postId);
+        if (index != -1) {
+          _trendingPosts[index] = updatedPost;
+          notifyListeners();
+        }
+        return updatedPost;
+      }
+    } catch (e) {
+      print('Error voting on poll: $e');
+    }
+    return null;
+  }
 }

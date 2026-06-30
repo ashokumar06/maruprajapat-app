@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../models/post_model.dart';
 import '../widgets/inline_youtube_player.dart';
 import '../widgets/post_content_view.dart';
+import '../widgets/poll_view.dart';
 import '../profile/profile_screen.dart';
 import '../explore/explore_screen.dart';
 import 'members_list_screen.dart';
@@ -723,18 +724,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildPostCard(PostModel post) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      elevation: 0,
-      color: ThemeConfig.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: ThemeConfig.divider),
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.transparent,
+        border: Border(
+          bottom: BorderSide(
+            color: ThemeConfig.divider,
+            width: 0.8,
+          ),
+        ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (post.isPinned) ...[
               Row(
@@ -812,14 +814,53 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            if (post.textContent != null && post.textContent!.isNotEmpty) ...[
-              PostContentView(
-                text: post.textContent!,
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: ThemeConfig.textPrimary,
-                ),
+            if (post.textContent != null && post.textContent!.isNotEmpty && post.postType != 'poll') ...[
+              Builder(
+                builder: (context) {
+                  final text = post.textContent!;
+                  final parts = text.split('\n\n').where((p) => p.trim().isNotEmpty).toList();
+                  if (parts.length > 1 && post.textContent!.contains('\n\n')) {
+                    final title = parts[0];
+                    final body = parts.sublist(1).join('\n\n');
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: ThemeConfig.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        PostContentView(
+                          text: body,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: ThemeConfig.textSecondary,
+                            height: 1.45,
+                          ),
+                        ),
+                      ],
+                    );
+                  } else {
+                    return PostContentView(
+                      text: text,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: ThemeConfig.textPrimary,
+                        height: 1.45,
+                      ),
+                    );
+                  }
+                },
               ),
+              const SizedBox(height: 12),
+            ],
+            if (post.postType == 'poll') ...[
+              const SizedBox(height: 12),
+              PollView(post: post),
             ],
             if (post.youtubeUrl != null && post.youtubeUrl!.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -832,67 +873,153 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Image.network(post.mediaUrl!, fit: BoxFit.cover),
               ),
             ],
-            if (post.locationName != null && post.locationName!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              InkWell(
-                onTap: () async {
-                  final lat = post.latitude ?? 25.75;
-                  final lon = post.longitude ?? 71.38;
-                  final url = Uri.parse(
-                    'https://www.google.com/maps/search/?api=1&query=$lat,$lon',
-                  );
-                  if (await canLaunchUrl(url)) {
-                    await launchUrl(url, mode: LaunchMode.externalApplication);
-                  }
-                },
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.location_on, color: Colors.blue, size: 14),
-                    const SizedBox(width: 4),
-                    Text(
-                      post.locationName!,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.blue,
-                        fontWeight: FontWeight.w600,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 4),
-            ],
+            Builder(
+              builder: (context) {
+                final hasLocation = post.locationName != null && post.locationName!.isNotEmpty;
+                final text = post.textContent ?? '';
+                final hashtagRegex = RegExp(r'#\w+');
+                final hashtags = hashtagRegex.allMatches(text).map((m) => m.group(0)!).toList();
+                
+                if (!hasLocation && hashtags.isEmpty) return const SizedBox.shrink();
+                
+                return Padding(
+                  padding: const EdgeInsets.only(top: 12.0),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (hasLocation)
+                        InkWell(
+                          onTap: () async {
+                            final lat = post.latitude ?? 25.75;
+                            final lon = post.longitude ?? 71.38;
+                            final url = Uri.parse(
+                              'https://www.google.com/maps/search/?api=1&query=$lat,$lon',
+                            );
+                            if (await canLaunchUrl(url)) {
+                              await launchUrl(url, mode: LaunchMode.externalApplication);
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50.withOpacity(0.4),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.location_on_outlined, color: Colors.brown, size: 14),
+                                const SizedBox(width: 4),
+                                Text(
+                                  post.locationName!,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.brown.shade800,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ...hashtags.map((tag) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50.withOpacity(0.4),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            tag,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.brown.shade800,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                );
+              }
+            ),
             const SizedBox(height: 16),
-            const Divider(color: ThemeConfig.divider),
+            const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    const Icon(
-                      Icons.favorite,
-                      color: ThemeConfig.error,
-                      size: 20,
+                    SizedBox(
+                      width: 28,
+                      height: 18,
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            left: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(1),
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const CircleAvatar(
+                                radius: 7,
+                                backgroundColor: Colors.blue,
+                                child: Icon(
+                                  Icons.thumb_up,
+                                  size: 7,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: 9,
+                            child: Container(
+                              padding: const EdgeInsets.all(1),
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const CircleAvatar(
+                                radius: 7,
+                                backgroundColor: Colors.red,
+                                child: Icon(
+                                  Icons.favorite,
+                                  size: 7,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(width: 4),
                     Text(
                       '${post.likesCount}',
-                      style: const TextStyle(color: ThemeConfig.textSecondary),
+                      style: const TextStyle(
+                        color: ThemeConfig.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
                 Text(
-                  '${post.commentsCount} टिप्पणियाँ',
+                  '${post.commentsCount} टिप्पणियाँ  •  12 शेयर',
                   style: const TextStyle(
                     color: ThemeConfig.textSecondary,
-                    fontSize: 13,
+                    fontSize: 12,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -901,10 +1028,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: const Icon(
                     Icons.thumb_up_outlined,
                     color: ThemeConfig.textSecondary,
+                    size: 18,
                   ),
                   label: const Text(
                     'लाइक',
-                    style: TextStyle(color: ThemeConfig.textSecondary),
+                    style: TextStyle(
+                      color: ThemeConfig.textSecondary,
+                      fontSize: 11,
+                    ),
                   ),
                 ),
                 TextButton.icon(
@@ -912,10 +1043,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: const Icon(
                     Icons.chat_bubble_outline,
                     color: ThemeConfig.textSecondary,
+                    size: 18,
                   ),
                   label: const Text(
                     'टिप्पणी',
-                    style: TextStyle(color: ThemeConfig.textSecondary),
+                    style: TextStyle(
+                      color: ThemeConfig.textSecondary,
+                      fontSize: 11,
+                    ),
                   ),
                 ),
                 TextButton.icon(
@@ -923,17 +1058,42 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: const Icon(
                     Icons.share_outlined,
                     color: ThemeConfig.textSecondary,
+                    size: 18,
                   ),
                   label: const Text(
                     'शेयर',
-                    style: TextStyle(color: ThemeConfig.textSecondary),
+                    style: TextStyle(
+                      color: ThemeConfig.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('पोस्ट सेव की गई।'),
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.bookmark_border,
+                    color: ThemeConfig.textSecondary,
+                    size: 18,
+                  ),
+                  label: const Text(
+                    'सेव करें',
+                    style: TextStyle(
+                      color: ThemeConfig.textSecondary,
+                      fontSize: 11,
+                    ),
                   ),
                 ),
               ],
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }
