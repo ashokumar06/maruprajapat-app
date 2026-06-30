@@ -10,6 +10,7 @@ class PostModel {
   final int commentsCount;
   final bool isDraft;
   final String? youtubeUrl;
+  final String? visibility;
   final bool isPinned;
   final String? locationName;
   final double? latitude;
@@ -28,6 +29,7 @@ class PostModel {
     this.commentsCount = 0,
     this.isDraft = false,
     this.youtubeUrl,
+    this.visibility,
     this.isPinned = false,
     this.locationName,
     this.latitude,
@@ -48,6 +50,7 @@ class PostModel {
       commentsCount: int.tryParse(json['comments_count'].toString()) ?? 0,
       isDraft: json['is_draft'] == true,
       youtubeUrl: json['youtube_url']?.toString(),
+      visibility: json['visibility']?.toString(),
       isPinned: json['is_pinned'] == true,
       locationName: json['location_name']?.toString(),
       latitude: json['latitude'] != null

@@ -23,6 +23,14 @@ class _NewsScreenState extends State<NewsScreen> {
   List<PostModel> _drafts = [];
   bool _isLoadingDrafts = false;
 
+  String _t(BuildContext context, String hi, String en) {
+    return Localizations.localeOf(context).languageCode == 'en' ? en : hi;
+  }
+
+  bool _isMemberOrAdmin(String? role) {
+    return role == 'member' || role == 'admin' || role == 'superadmin';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -70,9 +78,9 @@ class _NewsScreenState extends State<NewsScreen> {
     return Scaffold(
       backgroundColor: ThemeConfig.background,
       appBar: AppBar(
-        title: const Text(
-          'समाज फीड (News & Feed)',
-          style: TextStyle(
+        title: Text(
+          _t(context, 'समाज फीड', 'Community Feed'),
+          style: const TextStyle(
             color: ThemeConfig.textPrimary,
             fontWeight: FontWeight.bold,
           ),
@@ -81,36 +89,45 @@ class _NewsScreenState extends State<NewsScreen> {
         elevation: 0,
         centerTitle: false,
       ),
-      body: Column(
-        children: [
-          // Toggle Tabs
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 8.0,
-            ),
-            child: Row(
-              children: [
-                _buildTabButton(
-                  label: 'सभी पोस्ट',
-                  active: !_showDrafts,
-                  onTap: () => _onTabChanged(false),
+      body: Consumer<AuthProvider>(
+        builder: (context, authProvider, child) {
+          final role = authProvider.currentUserModel?.role;
+          return Column(
+            children: [
+              // Toggle Tabs
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 8.0,
                 ),
-                const SizedBox(width: 12),
-                _buildTabButton(
-                  label: 'मेरे ड्राफ्ट',
-                  active: _showDrafts,
-                  onTap: () => _onTabChanged(true),
+                child: Row(
+                  children: [
+                    _buildTabButton(
+                      label: _t(context, 'सभी पोस्ट', 'All Posts'),
+                      active: !_showDrafts,
+                      onTap: () => _onTabChanged(false),
+                    ),
+                    if (_isMemberOrAdmin(role)) ...[
+                      const SizedBox(width: 8),
+                      _buildTabButton(
+                        label: _t(context, 'मेरे ड्राफ्ट', 'My Drafts'),
+                        active: _showDrafts,
+                        onTap: () => _onTabChanged(true),
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
+              const Divider(height: 1, color: ThemeConfig.divider),
+              const SizedBox(height: 8),
 
-          // Main Feed List
-          Expanded(
-            child: _showDrafts ? _buildDraftsList() : _buildPublicFeedList(),
-          ),
-        ],
+              // Main Feed List
+              Expanded(
+                child: _showDrafts ? _buildDraftsList() : _buildPublicFeedList(),
+              ),
+            ],
+          );
+        },
       ),
       floatingActionButton: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
@@ -127,10 +144,10 @@ class _NewsScreenState extends State<NewsScreen> {
                 });
               },
               backgroundColor: ThemeConfig.primary,
-              icon: const Icon(Icons.add, color: Colors.white),
+              icon: const Icon(Icons.add, color: Colors.white, size: 18),
               label: const Text(
-                'पोस्ट करें',
-                style: TextStyle(color: Colors.white),
+                'पोस्ट',
+                style: TextStyle(color: Colors.white, fontSize: 13),
               ),
             );
           }
@@ -150,9 +167,10 @@ class _NewsScreenState extends State<NewsScreen> {
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
+          height: 38,
           decoration: BoxDecoration(
             color: active ? ThemeConfig.primary : ThemeConfig.surface,
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: active ? ThemeConfig.primary : ThemeConfig.border,
             ),
@@ -162,8 +180,8 @@ class _NewsScreenState extends State<NewsScreen> {
               label,
               style: TextStyle(
                 color: active ? Colors.white : ThemeConfig.textSecondary,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                fontSize: 11.5,
               ),
             ),
           ),

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:dio/dio.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../../config/theme_config.dart';
 import '../../providers/news_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -47,6 +48,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   // Pinned toggle (Admins only)
   bool _isPinned = false;
+  String _selectedVisibility = 'public';
 
   // Coordinates
   double? _latitude;
@@ -121,6 +123,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       _longitude = prefs.getDouble('draft_post_lng');
       _youtubeController.text = prefs.getString('draft_post_youtube') ?? '';
       _selectedFeeling = prefs.getString('draft_post_feeling');
+      _selectedVisibility = prefs.getString('draft_post_visibility') ?? 'public';
 
       // Secondary fields
       _photoDescController.text =
@@ -157,6 +160,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       await prefs.setDouble('draft_post_lng', _longitude!);
     }
     await prefs.setString('draft_post_youtube', _youtubeController.text);
+    await prefs.setString('draft_post_visibility', _selectedVisibility);
 
     if (_selectedFeeling != null) {
       await prefs.setString('draft_post_feeling', _selectedFeeling!);
@@ -183,6 +187,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     await prefs.remove('draft_post_lat');
     await prefs.remove('draft_post_lng');
     await prefs.remove('draft_post_youtube');
+    await prefs.remove('draft_post_visibility');
     await prefs.remove('draft_post_feeling');
     await prefs.remove('draft_post_photo_desc');
     await prefs.remove('draft_post_yt_title');
@@ -194,6 +199,110 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   bool get _hasImage => _selectedImage != null;
   bool get _hasYoutube => _youtubeController.text.trim().isNotEmpty;
+  bool _isMemberOrAdmin(UserModel? user) {
+    final role = user?.role;
+    return role == 'member' || role == 'admin' || role == 'superadmin';
+  }
+
+  static const int _dailyPostLimit = 100;
+
+  String _t(BuildContext context, String hi, String en) {
+    return Localizations.localeOf(context).languageCode == 'en' ? en : hi;
+  }
+
+  bool _isToday(DateTime? dt) {
+    if (dt == null) return false;
+    final now = DateTime.now();
+    return dt.year == now.year && dt.month == now.month && dt.day == now.day;
+  }
+
+  int _countTodayPostsForUser(List<PostModel> posts, int userId) {
+    return posts.where((post) {
+      return post.authorId == userId && !post.isDraft && _isToday(post.createdAt);
+    }).length;
+  }
+
+  Widget _buildVisibilityTile({
+    required String title,
+    required String subtitle,
+    required String value,
+    required IconData icon,
+  }) {
+    final selected = _selectedVisibility == value;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, color: ThemeConfig.primary),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle),
+      trailing: selected
+          ? const Icon(Icons.check, color: ThemeConfig.success)
+          : null,
+      onTap: () => Navigator.pop(context, value),
+    );
+  }
+
+  String _getVisibilityLabel(BuildContext context) {
+    final isEnglish = Localizations.localeOf(context).languageCode == 'en';
+    switch (_selectedVisibility) {
+      case 'members':
+        return isEnglish ? 'Members only' : 'केवल सदस्य';
+      case 'admin':
+        return isEnglish ? 'Admins only' : 'केवल एडमिन';
+      default:
+        return isEnglish ? 'Public' : 'सार्वजनिक';
+    }
+  }
+
+  Future<void> _showVisibilityDialog(UserModel? user) async {
+    if (!_isMemberOrAdmin(user)) return;
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (dialogContext) {
+        final isEnglish = Localizations.localeOf(context).languageCode == 'en';
+        return Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                isEnglish ? 'Choose visibility' : 'दर्शक चुनें',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              _buildVisibilityTile(
+                title: isEnglish ? 'Public' : 'सार्वजनिक',
+                subtitle: isEnglish ? 'Everyone can see' : 'सभी लोग देख सकते हैं',
+                value: 'public',
+                icon: Icons.public,
+              ),
+              _buildVisibilityTile(
+                title: isEnglish ? 'Members only' : 'केवल सदस्य',
+                subtitle: isEnglish ? 'Only member/admin' : 'सिर्फ सदस्य/एडमिन',
+                value: 'members',
+                icon: Icons.groups,
+              ),
+              _buildVisibilityTile(
+                title: isEnglish ? 'Admins only' : 'केवल एडमिन',
+                subtitle: isEnglish ? 'Admins only' : 'सिर्फ एडमिन देखेंगे',
+                value: 'admin',
+                icon: Icons.admin_panel_settings,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (selected != null && mounted) {
+      setState(() => _selectedVisibility = selected);
+      _saveLocalDraft();
+    }
+  }
 
   // Auto quality reduction (Max 10 KB limit)
   Future<void> _pickImage() async {
@@ -554,17 +663,102 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     final ytUrl = _youtubeController.text.trim();
     final title = _titleController.text.trim();
     final locationName = _locationController.text.trim();
+    final pollQuestion = _pollQuestionController.text.trim();
+    final newsProvider = Provider.of<NewsProvider>(context, listen: false);
+    final authUser = Provider.of<AuthProvider>(context, listen: false).currentUserModel;
 
     // Poll options logic
     List<String>? pollOptions;
-    if (_selectedPostType == 'poll') {
-      pollOptions = _pollOptionControllers
-          .map((c) => c.text.trim())
-          .where((t) => t.isNotEmpty)
-          .toList();
+      if (_selectedPostType == 'poll') {
+        pollOptions = _pollOptionControllers
+            .map((c) => c.text.trim())
+            .where((t) => t.isNotEmpty)
+            .toList();
     }
 
-    setState(() => _isSubmitting = true);
+      if (!isDraft) {
+      if (!_isMemberOrAdmin(authUser)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _t(context, 'पोस्ट करने के लिए सदस्य या एडमिन होना जरूरी है।', 'Only members or admins can create posts.'),
+            ),
+            backgroundColor: ThemeConfig.error,
+          ),
+        );
+        return;
+      }
+
+      if ((_selectedPostType == 'poll') && (pollOptions == null || pollOptions.length < 2)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _t(context, 'पोल के लिए कम से कम 2 विकल्प जरूरी हैं।', 'Polls need at least 2 options.'),
+            ),
+            backgroundColor: ThemeConfig.error,
+          ),
+        );
+        return;
+      }
+
+      if (title.isEmpty && content.isEmpty && !_hasImage && ytUrl.isEmpty && _selectedPostType != 'poll') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _t(context, 'कम से कम एक शीर्षक, विवरण, फोटो या वीडियो जोड़ें।', 'Add at least a title, description, photo, or video.'),
+            ),
+            backgroundColor: ThemeConfig.error,
+          ),
+        );
+        return;
+      }
+
+      if (ytUrl.isNotEmpty && YoutubePlayer.convertUrlToId(ytUrl) == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _t(context, 'मान्य YouTube लिंक डालें।', 'Please enter a valid YouTube link.'),
+            ),
+            backgroundColor: ThemeConfig.error,
+          ),
+        );
+        return;
+      }
+
+      if (authUser != null) {
+        if (newsProvider.trendingPosts.isEmpty) {
+          await newsProvider.fetchNewsFeed();
+        }
+        final todayCount = _countTodayPostsForUser(newsProvider.trendingPosts, authUser.id);
+        if (todayCount >= _dailyPostLimit) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                _t(
+                  context,
+                  'एक दिन में अधिकतम 100 पोस्ट ही कर सकते हैं।',
+                  'You can publish up to 100 posts per day.',
+                ),
+              ),
+              backgroundColor: ThemeConfig.error,
+            ),
+          );
+          return;
+        }
+      }
+      }
+
+      final effectiveText = _selectedPostType == 'poll'
+          ? [
+              if (title.isNotEmpty) title,
+              if (pollQuestion.isNotEmpty) pollQuestion,
+              if (content.isNotEmpty) content,
+            ].join('\n\n')
+          : title.isNotEmpty
+              ? '$title\n\n$content'
+              : content;
+
+      setState(() => _isSubmitting = true);
 
     try {
       String? uploadedUrl = _existingImageUrl;
@@ -597,11 +791,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       final resolvedYoutubeUrl = ytUrl.isNotEmpty ? ytUrl : null;
 
       if (mounted) {
-        final newsProvider = Provider.of<NewsProvider>(context, listen: false);
         final success = widget.postToEdit != null
             ? await newsProvider.updatePost(
                 widget.postToEdit!.id,
-                text: title.isNotEmpty ? '$title\n\n$content' : content,
+                text: effectiveText,
                 mediaUrl: resolvedMediaUrl,
                 isDraft: isDraft,
                 youtubeUrl: resolvedYoutubeUrl,
@@ -610,9 +803,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 latitude: _latitude,
                 longitude: _longitude,
                 pollOptions: pollOptions,
+                visibility: _selectedVisibility,
               )
             : await newsProvider.createPost(
-                text: title.isNotEmpty ? '$title\n\n$content' : content,
+                text: effectiveText,
                 mediaUrl: resolvedMediaUrl,
                 isDraft: isDraft,
                 youtubeUrl: resolvedYoutubeUrl,
@@ -622,6 +816,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 latitude: _latitude,
                 longitude: _longitude,
                 pollOptions: pollOptions,
+                visibility: _selectedVisibility,
               );
 
         if (success && mounted) {
@@ -671,7 +866,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   // STEP 0: Main Compose Screen
   Widget _buildMainFormScreen(UserModel? user, bool isAdmin) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8F0),
+      backgroundColor: ThemeConfig.background,
       appBar: AppBar(
         title: const Text(
           'पोस्ट बनाएं',
@@ -774,40 +969,43 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                             ),
                           ],
                         ),
-                        // Visibility Dropdown Pill
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade300),
-                            borderRadius: BorderRadius.circular(16),
-                            color: Colors.white,
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.public,
-                                size: 13,
-                                color: Colors.grey.shade700,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'सार्वजनिक',
-                                style: TextStyle(
-                                  fontSize: 11,
+                        InkWell(
+                          onTap: () => _showVisibilityDialog(user),
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(16),
+                              color: Colors.white,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.public,
+                                  size: 13,
                                   color: Colors.grey.shade700,
-                                  fontWeight: FontWeight.bold,
                                 ),
-                              ),
-                              const Icon(
-                                Icons.arrow_drop_down,
-                                size: 16,
-                                color: Colors.grey,
-                              ),
-                            ],
+                                const SizedBox(width: 4),
+                                Text(
+                                  _getVisibilityLabel(context),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade700,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.arrow_drop_down,
+                                  size: 16,
+                                  color: Colors.grey,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -816,6 +1014,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 ],
               ),
               const SizedBox(height: 20),
+              const Divider(height: 1, color: ThemeConfig.divider),
+              const SizedBox(height: 14),
 
               const Text(
                 'आप क्या साझा करना चाहते हैं?',
@@ -1095,7 +1295,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   // STEP 1: Photo config screen
   Widget _buildPhotoConfigScreen() {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8F0),
+      backgroundColor: ThemeConfig.background,
       appBar: AppBar(
         title: const Text(
           'फोटो चुनें',
@@ -1271,7 +1471,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   // STEP 2: YouTube configure screen
   Widget _buildYoutubeConfigScreen() {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8F0),
+      backgroundColor: ThemeConfig.background,
       appBar: AppBar(
         title: const Text(
           'YouTube लिंक जोड़ें',
@@ -1373,7 +1573,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   // STEP 3: Poll Configure Screen
   Widget _buildPollConfigScreen() {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8F0),
+      backgroundColor: ThemeConfig.background,
       appBar: AppBar(
         title: const Text(
           'पोल बनाएं',
@@ -1535,12 +1735,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
     final locationName = _locationController.text.trim();
+    final pollQuestion = _pollQuestionController.text.trim();
+    final pollOptions = _pollOptionControllers
+        .map((c) => c.text.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
+    final isEnglish = Localizations.localeOf(context).languageCode == 'en';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8F0),
+      backgroundColor: ThemeConfig.background,
       appBar: AppBar(
-        title: const Text(
-          'पोस्ट का पूर्वावलोकन',
+        title: Text(
+          isEnglish ? 'Post preview' : 'पोस्ट का पूर्वावलोकन',
           style: TextStyle(
             color: ThemeConfig.textPrimary,
             fontWeight: FontWeight.bold,
@@ -1556,9 +1762,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         actions: [
           TextButton(
             onPressed: () => setState(() => _currentStep = 0),
-            child: const Text(
-              'संपादित करें',
-              style: TextStyle(
+            child: Text(
+              isEnglish ? 'Edit' : 'संपादित करें',
+              style: const TextStyle(
                 color: Colors.orange,
                 fontWeight: FontWeight.bold,
               ),
@@ -1631,9 +1837,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                                 ),
                               ],
                             ),
-                            const Text(
-                              'सार्वजनिक • अभी कुछ सेकंड पहले',
-                              style: TextStyle(
+                            Text(
+                              '${_getVisibilityLabel(context)} • ${isEnglish ? 'just now' : 'अभी कुछ सेकंड पहले'}',
+                              style: const TextStyle(
                                 color: Colors.grey,
                                 fontSize: 11,
                               ),
@@ -1700,36 +1906,50 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
                     // Poll choices layout
                     if (_selectedPostType == 'poll') ...[
+                      const Divider(height: 24, color: ThemeConfig.divider),
                       const Text(
                         'आपकी क्या राय है?',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
-                      // Mock options
-                      _buildMockPollOption(
-                        'हाँ, समर्थन करता हूँ',
-                        68,
-                        136,
-                        true,
+                      if (pollQuestion.isNotEmpty) ...[
+                        Text(
+                          pollQuestion,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      ...pollOptions.map(
+                        (option) => Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.radio_button_unchecked,
+                                size: 16,
+                                color: ThemeConfig.primary,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  option,
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      _buildMockPollOption(
-                        'हाँ, मैं सहयोग करूँगा',
-                        25,
-                        50,
-                        false,
-                      ),
-                      _buildMockPollOption(
-                        'अभी विचार कर रहा हूँ',
-                        7,
-                        14,
-                        false,
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'कुल वोट: 200 • समाप्ति: 25 जून 2025',
-                        style: TextStyle(color: Colors.grey, fontSize: 12),
-                      ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 4),
                     ],
 
                     // Location pill
@@ -1832,62 +2052,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildMockPollOption(
-    String title,
-    int percent,
-    int count,
-    bool isSelected,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Stack(
-        children: [
-          Container(
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isSelected ? ThemeConfig.primary : Colors.grey.shade300,
-              ),
-            ),
-          ),
-          FractionallySizedBox(
-            widthFactor: percent / 100,
-            child: Container(
-              height: 40,
-              decoration: BoxDecoration(
-                color: ThemeConfig.primary.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                  Text(
-                    '$percent% ($count)',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -2004,6 +2168,45 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.currentUserModel;
     final isAdmin = user?.role == 'admin';
+    final canCreate = _isMemberOrAdmin(user);
+
+    if (!canCreate && widget.postToEdit == null) {
+      return Scaffold(
+        backgroundColor: ThemeConfig.background,
+        appBar: AppBar(
+          title: Text(
+            _t(context, 'पोस्ट बनाएं', 'Create Post'),
+            style: const TextStyle(
+              color: ThemeConfig.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.lock_outline, size: 48, color: ThemeConfig.primary),
+                const SizedBox(height: 16),
+                Text(
+                  _t(
+                    context,
+                    'पोस्ट बनाने के लिए सदस्य या एडमिन होना जरूरी है।',
+                    'Only members or admins can create posts.',
+                  ),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 16, color: ThemeConfig.textPrimary),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     if (_isSubmitting || _isUploadingImage) {
       return const Scaffold(

@@ -48,6 +48,7 @@ class NewsProvider extends ChangeNotifier {
     double? latitude,
     double? longitude,
     List<String>? pollOptions,
+    String? visibility,
   }) async {
     try {
       final client = ApiClient().dio;
@@ -62,6 +63,7 @@ class NewsProvider extends ChangeNotifier {
         'latitude': latitude,
         'longitude': longitude,
         'poll_options': pollOptions,
+        'visibility': visibility,
       });
 
       if (response.statusCode == 201) {
@@ -84,6 +86,7 @@ class NewsProvider extends ChangeNotifier {
     double? latitude,
     double? longitude,
     List<String>? pollOptions,
+    String? visibility,
   }) async {
     try {
       final client = ApiClient().dio;
@@ -97,6 +100,7 @@ class NewsProvider extends ChangeNotifier {
         'latitude': latitude,
         'longitude': longitude,
         'poll_options': pollOptions,
+        'visibility': visibility,
       });
       if (response.statusCode == 200) {
         await fetchNewsFeed();
