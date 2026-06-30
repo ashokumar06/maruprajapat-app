@@ -150,9 +150,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     await prefs.setString('draft_post_content', _contentController.text);
     await prefs.setString('draft_post_type', _selectedPostType);
     await prefs.setString('draft_post_location', _locationController.text);
-    if (_latitude != null) await prefs.setDouble('draft_post_lat', _latitude!);
-    if (_longitude != null)
+    if (_latitude != null) {
+      await prefs.setDouble('draft_post_lat', _latitude!);
+    }
+    if (_longitude != null) {
       await prefs.setDouble('draft_post_lng', _longitude!);
+    }
     await prefs.setString('draft_post_youtube', _youtubeController.text);
 
     if (_selectedFeeling != null) {

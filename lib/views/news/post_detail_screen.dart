@@ -6,7 +6,6 @@ import '../../models/post_model.dart';
 import '../../services/api_client.dart';
 import '../widgets/inline_youtube_player.dart';
 import '../widgets/post_content_view.dart';
-import 'news_screen.dart';
 
 class PostDetailScreen extends StatefulWidget {
   final int postId;

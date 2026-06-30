@@ -37,22 +37,28 @@ class PostModel {
 
   factory PostModel.fromJson(Map<String, dynamic> json) {
     return PostModel(
-      id: json['id'] ?? 0,
-      authorId: json['author_id'] ?? 0,
-      authorName: json['author_name'],
-      authorPhoto: json['author_photo'],
-      postType: json['post_type'] ?? 'text',
-      textContent: json['text_content'],
-      mediaUrl: json['media_url'],
-      likesCount: json['likes_count'] ?? 0,
-      commentsCount: json['comments_count'] ?? 0,
-      isDraft: json['is_draft'] ?? false,
-      youtubeUrl: json['youtube_url'],
-      isPinned: json['is_pinned'] ?? false,
-      locationName: json['location_name'],
-      latitude: json['latitude'] != null ? double.tryParse(json['latitude'].toString()) : null,
-      longitude: json['longitude'] != null ? double.tryParse(json['longitude'].toString()) : null,
-      createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) : null,
+      id: int.tryParse(json['id'].toString()) ?? 0,
+      authorId: int.tryParse(json['author_id'].toString()) ?? 0,
+      authorName: json['author_name']?.toString(),
+      authorPhoto: json['author_photo']?.toString(),
+      postType: json['post_type']?.toString() ?? 'text',
+      textContent: json['text_content']?.toString(),
+      mediaUrl: json['media_url']?.toString(),
+      likesCount: int.tryParse(json['likes_count'].toString()) ?? 0,
+      commentsCount: int.tryParse(json['comments_count'].toString()) ?? 0,
+      isDraft: json['is_draft'] == true,
+      youtubeUrl: json['youtube_url']?.toString(),
+      isPinned: json['is_pinned'] == true,
+      locationName: json['location_name']?.toString(),
+      latitude: json['latitude'] != null
+          ? double.tryParse(json['latitude'].toString())
+          : null,
+      longitude: json['longitude'] != null
+          ? double.tryParse(json['longitude'].toString())
+          : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'].toString())
+          : null,
     );
   }
 }

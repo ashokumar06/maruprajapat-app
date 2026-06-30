@@ -39,9 +39,13 @@ class _PostContentViewState extends State<PostContentView> {
   }
 
   TapGestureRecognizer _linkRecognizer(String url) {
+    final normalizedUrl =
+        url.startsWith('http://') || url.startsWith('https://')
+        ? url.trim()
+        : 'https://${url.trim()}';
     final recognizer = TapGestureRecognizer()
       ..onTap = () async {
-        final uri = Uri.tryParse(url.trim());
+        final uri = Uri.tryParse(normalizedUrl);
         if (uri != null && await canLaunchUrl(uri)) {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
         }

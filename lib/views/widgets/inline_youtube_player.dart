@@ -22,6 +22,7 @@ class InlineYoutubePlayer extends StatefulWidget {
 class _InlineYoutubePlayerState extends State<InlineYoutubePlayer> {
   YoutubePlayerController? _controller;
   String? _videoId;
+  bool _didTryUnmute = false;
 
   @override
   void initState() {
@@ -49,10 +50,11 @@ class _InlineYoutubePlayerState extends State<InlineYoutubePlayer> {
       initialVideoId: _videoId!,
       flags: const YoutubePlayerFlags(
         autoPlay: true,
-        mute: false,
+        mute: true,
         controlsVisibleAtStart: true,
         disableDragSeek: false,
         enableCaption: false,
+        useHybridComposition: false,
       ),
     );
   }
@@ -83,12 +85,25 @@ class _InlineYoutubePlayerState extends State<InlineYoutubePlayer> {
 
     return ClipRRect(
       borderRadius: widget.borderRadius,
-      child: YoutubePlayer(
-        controller: _controller!,
+      child: AspectRatio(
         aspectRatio: widget.aspectRatio,
-        showVideoProgressIndicator: true,
-        progressIndicatorColor: ThemeConfig.primary,
-        onReady: () {},
+        child: YoutubePlayer(
+          controller: _controller!,
+          aspectRatio: widget.aspectRatio,
+          showVideoProgressIndicator: true,
+          progressIndicatorColor: ThemeConfig.primary,
+          onReady: () {
+            _controller?.play();
+            if (!_didTryUnmute) {
+              _didTryUnmute = true;
+              Future.delayed(const Duration(milliseconds: 900), () {
+                if (mounted) {
+                  _controller?.unMute();
+                }
+              });
+            }
+          },
+        ),
       ),
     );
   }
