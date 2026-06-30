@@ -1,4 +1,5 @@
 class UserModel {
+  final int id;
   final String uid;
   final String fullName;
   final String fatherName;
@@ -13,6 +14,7 @@ class UserModel {
   final DateTime? createdAt;
 
   UserModel({
+    required this.id,
     required this.uid,
     required this.fullName,
     this.fatherName = '',
@@ -30,6 +32,7 @@ class UserModel {
   // Convert Firestore JSON to model
   factory UserModel.fromJson(Map<String, dynamic> json, String id) {
     return UserModel(
+      id: json['id'] ?? 0,
       uid: id,
       fullName: json['full_name'] ?? json['fullName'] ?? '',
       fatherName: json['father_name'] ?? json['fatherName'] ?? '',

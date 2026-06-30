@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme_config.dart';
 import '../../providers/news_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/post_model.dart';
+import '../../services/api_client.dart';
+import '../widgets/inline_youtube_player.dart';
+import '../widgets/post_content_view.dart';
+import 'create_post_screen.dart';
 
 class NewsScreen extends StatefulWidget {
   const NewsScreen({super.key});
@@ -13,6 +19,10 @@ class NewsScreen extends StatefulWidget {
 }
 
 class _NewsScreenState extends State<NewsScreen> {
+  bool _showDrafts = false;
+  List<PostModel> _drafts = [];
+  bool _isLoadingDrafts = false;
+
   @override
   void initState() {
     super.initState();
@@ -21,42 +31,86 @@ class _NewsScreenState extends State<NewsScreen> {
     });
   }
 
+  Future<void> _fetchDrafts() async {
+    setState(() => _isLoadingDrafts = true);
+    try {
+      final dio = ApiClient().dio;
+      final response = await dio.get('/api/v1/posts/drafts');
+      if (response.statusCode == 200 && response.data != null) {
+        final List items = response.data['items'] ?? [];
+        setState(() {
+          _drafts = items.map((e) => PostModel.fromJson(e)).toList();
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ड्राफ्ट लोड करने में विफल'),
+          backgroundColor: ThemeConfig.error,
+        ),
+      );
+    } finally {
+      setState(() => _isLoadingDrafts = false);
+    }
+  }
+
+  void _onTabChanged(bool showDrafts) {
+    setState(() {
+      _showDrafts = showDrafts;
+    });
+    if (showDrafts) {
+      _fetchDrafts();
+    } else {
+      context.read<NewsProvider>().fetchNewsFeed();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: ThemeConfig.background,
       appBar: AppBar(
-        title: const Text('न्यूज़ / ट्रेंडिंग', style: TextStyle(color: ThemeConfig.textPrimary, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
+        title: const Text(
+          'समाज फीड (News & Feed)',
+          style: TextStyle(
+            color: ThemeConfig.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
       ),
-      body: Consumer<NewsProvider>(
-        builder: (context, newsProvider, child) {
-          if (newsProvider.isLoading && newsProvider.trendingPosts.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (newsProvider.error != null && newsProvider.trendingPosts.isEmpty) {
-            return Center(child: Text('Error: ${newsProvider.error}'));
-          }
-
-          if (newsProvider.trendingPosts.isEmpty) {
-            return const Center(child: Text('कोई समाचार नहीं मिला'));
-          }
-
-          return RefreshIndicator(
-            onRefresh: () => newsProvider.fetchNewsFeed(),
-            child: ListView.builder(
-              padding: const EdgeInsets.only(bottom: 80),
-              itemCount: newsProvider.trendingPosts.length,
-              itemBuilder: (context, index) {
-                final post = newsProvider.trendingPosts[index];
-                return _buildPostCard(post, index);
-              },
+      body: Column(
+        children: [
+          // Toggle Tabs
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 8.0,
             ),
-          );
-        },
+            child: Row(
+              children: [
+                _buildTabButton(
+                  label: 'सभी पोस्ट',
+                  active: !_showDrafts,
+                  onTap: () => _onTabChanged(false),
+                ),
+                const SizedBox(width: 12),
+                _buildTabButton(
+                  label: 'मेरे ड्राफ्ट',
+                  active: _showDrafts,
+                  onTap: () => _onTabChanged(true),
+                ),
+              ],
+            ),
+          ),
+
+          // Main Feed List
+          Expanded(
+            child: _showDrafts ? _buildDraftsList() : _buildPublicFeedList(),
+          ),
+        ],
       ),
       floatingActionButton: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
@@ -64,11 +118,20 @@ class _NewsScreenState extends State<NewsScreen> {
           if (role == 'member' || role == 'admin' || role == 'superadmin') {
             return FloatingActionButton.extended(
               onPressed: () {
-                _showCreatePostSheet(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CreatePostScreen()),
+                ).then((_) {
+                  // Refresh active list
+                  _onTabChanged(_showDrafts);
+                });
               },
               backgroundColor: ThemeConfig.primary,
               icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text('पोस्ट करें', style: TextStyle(color: Colors.white)),
+              label: const Text(
+                'पोस्ट करें',
+                style: TextStyle(color: Colors.white),
+              ),
             );
           }
           return const SizedBox.shrink();
@@ -77,134 +140,417 @@ class _NewsScreenState extends State<NewsScreen> {
     );
   }
 
-  void _showCreatePostSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          child: const CreatePostForm(),
+  Widget _buildTabButton({
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: active ? ThemeConfig.primary : ThemeConfig.surface,
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(
+              color: active ? ThemeConfig.primary : ThemeConfig.border,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: active ? Colors.white : ThemeConfig.textSecondary,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPublicFeedList() {
+    return Consumer<NewsProvider>(
+      builder: (context, newsProvider, child) {
+        if (newsProvider.isLoading && newsProvider.trendingPosts.isEmpty) {
+          return const Center(
+            child: CircularProgressIndicator(color: ThemeConfig.primary),
+          );
+        }
+
+        if (newsProvider.trendingPosts.isEmpty) {
+          return RefreshIndicator(
+            onRefresh: () => newsProvider.fetchNewsFeed(),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(24),
+              children: const [
+                SizedBox(height: 160),
+                Center(
+                  child: Text(
+                    'कोई पोस्ट नहीं मिली।',
+                    style: TextStyle(color: ThemeConfig.textSecondary),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: () => newsProvider.fetchNewsFeed(),
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: newsProvider.trendingPosts.length,
+            itemBuilder: (context, index) {
+              final post = newsProvider.trendingPosts[index];
+              return _buildPostCard(post, isTrending: index < 3);
+            },
+          ),
         );
       },
     );
   }
 
-  Widget _buildPostCard(PostModel post, int index) {
+  Widget _buildDraftsList() {
+    if (_isLoadingDrafts) {
+      return const Center(
+        child: CircularProgressIndicator(color: ThemeConfig.primary),
+      );
+    }
+
+    if (_drafts.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _fetchDrafts,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(24),
+          children: const [
+            SizedBox(height: 160),
+            Center(
+              child: Text(
+                'कोई ड्राफ्ट पोस्ट नहीं मिली।',
+                style: TextStyle(color: ThemeConfig.textSecondary),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _fetchDrafts,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: _drafts.length,
+        itemBuilder: (context, index) {
+          final post = _drafts[index];
+          return _buildPostCard(post, isTrending: false);
+        },
+      ),
+    );
+  }
+
+  Widget _buildPostCard(PostModel post, {required bool isTrending}) {
+    final currentUserId = context.read<AuthProvider>().currentUserModel?.id;
+    final isAuthor = post.authorId == currentUserId;
+
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 16),
       color: ThemeConfig.surface,
+      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: index < 3 ? ThemeConfig.error.withOpacity(0.5) : ThemeConfig.divider, width: index < 3 ? 1.5 : 1.0),
+        side: BorderSide(
+          color: isTrending
+              ? ThemeConfig.error.withOpacity(0.3)
+              : ThemeConfig.border,
+          width: isTrending ? 1.5 : 1.0,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (index < 3) ...[
+            if (post.isPinned) ...[
               Row(
                 children: [
-                  Icon(Icons.local_fire_department, color: ThemeConfig.error, size: 16),
+                  const Icon(Icons.push_pin, color: Colors.orange, size: 14),
                   const SizedBox(width: 4),
                   Text(
-                    'ट्रेंडिंग #${index + 1}',
-                    style: const TextStyle(color: ThemeConfig.error, fontWeight: FontWeight.bold, fontSize: 12),
+                    'पिन की गई पोस्ट',
+                    style: TextStyle(
+                      color: Colors.orange.shade800,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
+            ] else if (isTrending) ...[
+              const Row(
+                children: [
+                  Icon(
+                    Icons.local_fire_department,
+                    color: ThemeConfig.error,
+                    size: 16,
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    'लोकप्रिय पोस्ट',
+                    style: TextStyle(
+                      color: ThemeConfig.error,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
             ],
+
+            // Author Info Header
             Row(
               children: [
                 CircleAvatar(
                   backgroundColor: ThemeConfig.border,
-                  backgroundImage: post.authorPhoto != null ? NetworkImage(post.authorPhoto!) : null,
-                  child: post.authorPhoto == null ? const Icon(Icons.person, color: Colors.white) : null,
+                  backgroundImage: post.authorPhoto != null
+                      ? NetworkImage(post.authorPhoto!)
+                      : null,
+                  child: post.authorPhoto == null
+                      ? const Icon(Icons.person, color: Colors.white)
+                      : null,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Text(
-                            post.authorName ?? 'अज्ञात',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: ThemeConfig.success.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text(
-                              'सदस्य',
-                              style: TextStyle(color: ThemeConfig.success, fontSize: 10),
-                            ),
-                          ),
-                        ],
+                      Text(
+                        post.authorName ?? 'अज्ञात',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
                       ),
-                      const Text(
-                        'हाल ही में',
-                        style: TextStyle(color: ThemeConfig.textSecondary, fontSize: 12),
+                      Text(
+                        post.isDraft ? 'ड्राफ्ट मोड' : 'हाल ही में',
+                        style: const TextStyle(
+                          color: ThemeConfig.textHint,
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.more_vert, color: ThemeConfig.textSecondary),
+
+                // Author/Admin options popup menu
+                Builder(
+                  builder: (context) {
+                    final isAdmin =
+                        context.read<AuthProvider>().currentUserModel?.role ==
+                        'admin';
+                    if (isAuthor || isAdmin) {
+                      return PopupMenuButton<String>(
+                        onSelected: (val) => _handlePostMenuOption(val, post),
+                        icon: const Icon(
+                          Icons.more_vert,
+                          color: ThemeConfig.textSecondary,
+                        ),
+                        itemBuilder: (context) => [
+                          if (post.isDraft && isAuthor)
+                            const PopupMenuItem(
+                              value: 'publish',
+                              child: Text('प्रकाशित करें (Publish)'),
+                            ),
+                          if (isAuthor)
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: Text('संपादित करें (Edit)'),
+                            ),
+                          if (isAdmin)
+                            PopupMenuItem(
+                              value: 'pin',
+                              child: Text(
+                                post.isPinned
+                                    ? 'अनपिन करें (Unpin)'
+                                    : 'पिन करें (Pin)',
+                              ),
+                            ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Text(
+                              'हटाएं (Delete)',
+                              style: TextStyle(color: ThemeConfig.error),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
               ],
             ),
             const SizedBox(height: 12),
-            Text(
-              post.textContent ?? '',
-              style: const TextStyle(fontSize: 15, color: ThemeConfig.textPrimary),
-            ),
-            if (post.mediaUrl != null && post.mediaUrl!.isNotEmpty) ...[
+
+            // Text Content
+            if (post.textContent != null && post.textContent!.isNotEmpty) ...[
+              PostContentView(
+                text: post.textContent!,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: ThemeConfig.textPrimary,
+                  height: 1.4,
+                ),
+              ),
               const SizedBox(height: 12),
+            ],
+
+            // Video Player
+            if (post.youtubeUrl != null && post.youtubeUrl!.isNotEmpty) ...[
+              InlineYoutubePlayer(videoUrl: post.youtubeUrl!),
+              const SizedBox(height: 12),
+            ]
+            // Image Content
+            else if (post.mediaUrl != null && post.mediaUrl!.isNotEmpty) ...[
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(post.mediaUrl!, fit: BoxFit.cover),
+                child: Image.network(
+                  post.mediaUrl!,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                ),
               ),
+              const SizedBox(height: 12),
             ],
-            const SizedBox(height: 16),
+
+            if (post.locationName != null && post.locationName!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: () async {
+                  final lat = post.latitude ?? 25.75;
+                  final lon = post.longitude ?? 71.38;
+                  final url = Uri.parse(
+                    'https://www.google.com/maps/search/?api=1&query=$lat,$lon',
+                  );
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  }
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.location_on, color: Colors.blue, size: 14),
+                    const SizedBox(width: 4),
+                    Text(
+                      post.locationName!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.blue,
+                        fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
+            ],
+
             const Divider(color: ThemeConfig.divider),
+            const SizedBox(height: 8),
+
+            // Likes/Comments indicators
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.favorite, color: ThemeConfig.error, size: 20),
+                    const Icon(
+                      Icons.thumb_up,
+                      color: ThemeConfig.primary,
+                      size: 14,
+                    ),
                     const SizedBox(width: 4),
-                    Text('${post.likesCount}', style: const TextStyle(color: ThemeConfig.textSecondary)),
+                    Text(
+                      '${post.likesCount} लाइक्स',
+                      style: const TextStyle(
+                        color: ThemeConfig.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
-                Text('${post.commentsCount} टिप्पणियाँ', style: const TextStyle(color: ThemeConfig.textSecondary, fontSize: 13)),
+                Text(
+                  '${post.commentsCount} टिप्पणियाँ',
+                  style: const TextStyle(
+                    color: ThemeConfig.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
+
+            // Action Buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
+                // Like Button
                 TextButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.thumb_up_outlined, color: ThemeConfig.textSecondary),
-                  label: const Text('लाइक', style: TextStyle(color: ThemeConfig.textSecondary)),
+                  onPressed: () => _toggleLike(post.id),
+                  icon: const Icon(
+                    Icons.thumb_up_outlined,
+                    color: ThemeConfig.textSecondary,
+                    size: 18,
+                  ),
+                  label: const Text(
+                    'लाइक',
+                    style: TextStyle(
+                      color: ThemeConfig.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
                 ),
+                // Comment Button
                 TextButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.chat_bubble_outline, color: ThemeConfig.textSecondary),
-                  label: const Text('टिप्पणी', style: TextStyle(color: ThemeConfig.textSecondary)),
+                  onPressed: () => _showCommentsSheet(post),
+                  icon: const Icon(
+                    Icons.chat_bubble_outline,
+                    color: ThemeConfig.textSecondary,
+                    size: 18,
+                  ),
+                  label: const Text(
+                    'टिप्पणी',
+                    style: TextStyle(
+                      color: ThemeConfig.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
                 ),
+                // Share Button
                 TextButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.share_outlined, color: ThemeConfig.textSecondary),
-                  label: const Text('शेयर', style: TextStyle(color: ThemeConfig.textSecondary)),
+                  onPressed: () => _sharePost(post.id),
+                  icon: const Icon(
+                    Icons.share_outlined,
+                    color: ThemeConfig.textSecondary,
+                    size: 18,
+                  ),
+                  label: const Text(
+                    'शेयर',
+                    style: TextStyle(
+                      color: ThemeConfig.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -213,48 +559,204 @@ class _NewsScreenState extends State<NewsScreen> {
       ),
     );
   }
+
+  void _handlePostMenuOption(String option, PostModel post) async {
+    final newsProvider = Provider.of<NewsProvider>(context, listen: false);
+    if (option == 'publish') {
+      final success = await newsProvider.publishDraft(post.id);
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('पोस्ट सफलतापूर्वक प्रकाशित हो गई है।'),
+            backgroundColor: ThemeConfig.success,
+          ),
+        );
+        _onTabChanged(_showDrafts);
+      }
+    } else if (option == 'delete') {
+      final success = await newsProvider.deletePost(post.id);
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('पोस्ट हटा दी गई है।'),
+            backgroundColor: ThemeConfig.success,
+          ),
+        );
+        _onTabChanged(_showDrafts);
+      }
+    } else if (option == 'pin') {
+      try {
+        final dio = ApiClient().dio;
+        final response = await dio.put(
+          '/api/v1/posts/${post.id}',
+          data: {'is_pinned': !post.isPinned},
+        );
+        if (response.statusCode == 200 && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                post.isPinned
+                    ? 'पोस्ट को अनपिन कर दिया गया है।'
+                    : 'पोस्ट को पिन कर दिया गया है।',
+              ),
+              backgroundColor: ThemeConfig.success,
+            ),
+          );
+          _onTabChanged(_showDrafts);
+        }
+      } catch (e) {
+        print('Error toggling pin status: $e');
+      }
+    } else if (option == 'edit') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CreatePostScreen(postToEdit: post),
+        ),
+      );
+    }
+  }
+
+  void _toggleLike(int postId) async {
+    try {
+      final dio = ApiClient().dio;
+      final response = await dio.post('/api/v1/posts/$postId/like');
+      if (response.statusCode == 200 && mounted) {
+        _onTabChanged(_showDrafts);
+      }
+    } catch (e) {
+      print('Error liking post: $e');
+    }
+  }
+
+  void _sharePost(int postId) {
+    final link = 'maruprajapat://posts/$postId';
+    Clipboard.setData(ClipboardData(text: link));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('शेयर लिंक कॉपी कर लिया गया है! इसे शेयर करें।'),
+        backgroundColor: ThemeConfig.success,
+      ),
+    );
+  }
+
+  void _showCommentsSheet(PostModel post) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: CommentsSheetContent(
+            post: post,
+            onCommentAdded: () => _onTabChanged(_showDrafts),
+          ),
+        );
+      },
+    );
+  }
 }
 
-class CreatePostForm extends StatefulWidget {
-  const CreatePostForm({super.key});
+// Comments sheet dialog view
+class CommentsSheetContent extends StatefulWidget {
+  final PostModel post;
+  final VoidCallback onCommentAdded;
+  const CommentsSheetContent({
+    super.key,
+    required this.post,
+    required this.onCommentAdded,
+  });
 
   @override
-  State<CreatePostForm> createState() => _CreatePostFormState();
+  State<CommentsSheetContent> createState() => _CommentsSheetContentState();
 }
 
-class _CreatePostFormState extends State<CreatePostForm> {
-  final _textController = TextEditingController();
-  bool _isSubmitting = false;
+class _CommentsSheetContentState extends State<CommentsSheetContent> {
+  final List<dynamic> _comments = [];
+  bool _isLoading = false;
+  final _commentController = TextEditingController();
 
-  Future<void> _submitPost() async {
-    final text = _textController.text.trim();
+  @override
+  void initState() {
+    super.initState();
+    _fetchComments();
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchComments() async {
+    setState(() => _isLoading = true);
+    try {
+      final dio = ApiClient().dio;
+      final response = await dio.get(
+        '/api/v1/posts/${widget.post.id}/comments?page=1&per_page=100',
+      );
+      if (response.statusCode == 200 && response.data != null) {
+        setState(() {
+          _comments.clear();
+          _comments.addAll(response.data['items'] ?? []);
+        });
+      }
+    } catch (e) {
+      print('Error fetching comments: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _submitComment() async {
+    final text = _commentController.text.trim();
     if (text.isEmpty) return;
 
-    setState(() => _isSubmitting = true);
-    
+    if (_comments.length >= 100) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'एक पोस्ट पर अधिकतम 100 टिप्पणियाँ ही जोड़ी जा सकती हैं।',
+          ),
+          backgroundColor: ThemeConfig.error,
+        ),
+      );
+      return;
+    }
+
     try {
-      final success = await context.read<NewsProvider>().createPost(text);
-      if (success && mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('पोस्ट सफलतापूर्वक बना दी गई है')),
-        );
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('पोस्ट बनाने में विफल रहा')),
-        );
+      final dio = ApiClient().dio;
+      final response = await dio.post(
+        '/api/v1/posts/${widget.post.id}/comments',
+        data: {'content': text},
+      );
+
+      if (response.statusCode == 201) {
+        _commentController.clear();
+        _fetchComments();
+        widget.onCommentAdded();
       }
-    } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('टिप्पणी जोड़ने में त्रुटि'),
+          backgroundColor: ThemeConfig.error,
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final hasHitLimit = _comments.length >= 100;
+
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.all(20.0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -262,32 +764,104 @@ class _CreatePostFormState extends State<CreatePostForm> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('नई पोस्ट बनाएं', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              Text(
+                'टिप्पणियाँ (${_comments.length}/100)',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               IconButton(
                 icon: const Icon(Icons.close),
                 onPressed: () => Navigator.pop(context),
-              )
+              ),
             ],
           ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _textController,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              hintText: 'आपके मन में क्या है?',
-              border: OutlineInputBorder(),
+          const Divider(),
+
+          if (_isLoading)
+            const SizedBox(
+              height: 120,
+              child: Center(
+                child: CircularProgressIndicator(color: ThemeConfig.primary),
+              ),
+            )
+          else if (_comments.isEmpty)
+            const SizedBox(
+              height: 100,
+              child: Center(
+                child: Text('कोई टिप्पणी नहीं है। पहली टिप्पणी लिखें!'),
+              ),
+            )
+          else
+            SizedBox(
+              height: 250,
+              child: ListView.builder(
+                itemCount: _comments.length,
+                itemBuilder: (context, index) {
+                  final item = _comments[index];
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      item['author_name'] ?? 'अज्ञात',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                    subtitle: Text(
+                      item['content'] ?? '',
+                      style: const TextStyle(
+                        color: ThemeConfig.textPrimary,
+                        fontSize: 14,
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: _isSubmitting ? null : _submitPost,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: ThemeConfig.primary,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+
+          const Divider(),
+          if (hasHitLimit)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8.0),
+              child: Text(
+                'टिप्पणियों की अधिकतम सीमा (100) पूरी हो चुकी है।',
+                style: TextStyle(
+                  color: ThemeConfig.error,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
-            child: _isSubmitting 
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : const Text('पोस्ट करें', style: TextStyle(color: Colors.white, fontSize: 16)),
+
+          // Comment input
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _commentController,
+                  enabled: !hasHitLimit,
+                  decoration: InputDecoration(
+                    hintText: hasHitLimit
+                        ? 'सीमा समाप्त'
+                        : 'अपनी टिप्पणी लिखें...',
+                    hintStyle: const TextStyle(color: ThemeConfig.textHint),
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.send, color: ThemeConfig.primary),
+                onPressed: hasHitLimit ? null : _submitComment,
+              ),
+            ],
           ),
         ],
       ),

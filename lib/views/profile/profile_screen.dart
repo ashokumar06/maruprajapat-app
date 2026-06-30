@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../main.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme_config.dart';
 import '../../providers/auth_provider.dart';
@@ -185,9 +186,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   }),
                   _buildMenuDivider(),
                   _buildMenuItem(Icons.settings_outlined, 'सेटिंग्स', () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('सेटिंग्स जल्द ही उपलब्ध होंगी।')),
-                    );
+                    _showSettingsSheet(context);
                   }),
                 ],
               ),
@@ -660,6 +659,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 child: const Text('जानकारी संपादित करें (Edit Info)', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSettingsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        final currentLocale = Localizations.localeOf(context);
+        return Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'भाषा चुनें / Select Language',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: const Icon(Icons.language, color: ThemeConfig.primary),
+                title: const Text('हिंदी (Hindi)', style: TextStyle(fontWeight: FontWeight.bold)),
+                trailing: currentLocale.languageCode == 'hi' ? const Icon(Icons.check, color: ThemeConfig.success) : null,
+                onTap: () {
+                  MyApp.setLocale(context, const Locale('hi', ''));
+                  Navigator.pop(context);
+                },
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.language, color: ThemeConfig.primary),
+                title: const Text('English', style: TextStyle(fontWeight: FontWeight.bold)),
+                trailing: currentLocale.languageCode == 'en' ? const Icon(Icons.check, color: ThemeConfig.success) : null,
+                onTap: () {
+                  MyApp.setLocale(context, const Locale('en', ''));
+                  Navigator.pop(context);
+                },
               ),
             ],
           ),

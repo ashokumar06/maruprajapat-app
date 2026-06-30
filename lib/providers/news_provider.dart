@@ -37,12 +37,31 @@ class NewsProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> createPost(String text) async {
+  Future<bool> createPost({
+    required String text,
+    String? mediaUrl,
+    bool isDraft = false,
+    String? youtubeUrl,
+    String postType = 'text',
+    bool isPinned = false,
+    String? locationName,
+    double? latitude,
+    double? longitude,
+    List<String>? pollOptions,
+  }) async {
     try {
       final client = ApiClient().dio;
       final response = await client.post('/api/v1/posts/', data: {
-        'post_type': 'text',
+        'post_type': postType,
         'text_content': text,
+        'media_url': mediaUrl,
+        'is_draft': isDraft,
+        'youtube_url': youtubeUrl,
+        'is_pinned': isPinned,
+        'location_name': locationName,
+        'latitude': latitude,
+        'longitude': longitude,
+        'poll_options': pollOptions,
       });
 
       if (response.statusCode == 201) {
@@ -51,6 +70,58 @@ class NewsProvider extends ChangeNotifier {
       }
     } catch (e) {
       print('Error creating post: $e');
+    }
+    return false;
+  }
+
+  Future<bool> updatePost(int postId, {
+    String? text,
+    String? mediaUrl,
+    bool? isDraft,
+    String? youtubeUrl,
+    bool? isPinned,
+    String? locationName,
+    double? latitude,
+    double? longitude,
+    List<String>? pollOptions,
+  }) async {
+    try {
+      final client = ApiClient().dio;
+      final response = await client.put('/api/v1/posts/$postId', data: {
+        'text_content': text,
+        'media_url': mediaUrl,
+        'is_draft': isDraft,
+        'youtube_url': youtubeUrl,
+        'is_pinned': isPinned,
+        'location_name': locationName,
+        'latitude': latitude,
+        'longitude': longitude,
+        'poll_options': pollOptions,
+      });
+      if (response.statusCode == 200) {
+        await fetchNewsFeed();
+        return true;
+      }
+    } catch (e) {
+      print('Error updating post: $e');
+    }
+    return false;
+  }
+
+  Future<bool> publishDraft(int postId) async {
+    return updatePost(postId, isDraft: false);
+  }
+
+  Future<bool> deletePost(int postId) async {
+    try {
+      final client = ApiClient().dio;
+      final response = await client.delete('/api/v1/posts/$postId');
+      if (response.statusCode == 200) {
+        await fetchNewsFeed();
+        return true;
+      }
+    } catch (e) {
+      print('Error deleting post: $e');
     }
     return false;
   }
