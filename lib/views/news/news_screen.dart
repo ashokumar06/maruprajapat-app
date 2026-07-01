@@ -35,8 +35,10 @@ class _NewsScreenState extends State<NewsScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<NewsProvider>().fetchNewsFeed();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final newsProvider = context.read<NewsProvider>();
+      await newsProvider.loadCachedNewsFeed();
+      newsProvider.fetchNewsFeed();
     });
   }
 
@@ -350,12 +352,37 @@ class _NewsScreenState extends State<NewsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        post.authorName ?? 'अज्ञात',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              post.authorName ?? 'अज्ञात',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (post.communityName != null && post.communityName!.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: ThemeConfig.primary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                post.communityName!,
+                                style: const TextStyle(
+                                  color: ThemeConfig.primary,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       Text(
                         post.isDraft ? 'ड्राफ्ट मोड' : 'हाल ही में',
@@ -644,16 +671,17 @@ class _NewsScreenState extends State<NewsScreen> {
                 // Like Button
                 TextButton.icon(
                   onPressed: () => _toggleLike(post.id),
-                  icon: const Icon(
-                    Icons.thumb_up_outlined,
-                    color: ThemeConfig.textSecondary,
+                  icon: Icon(
+                    post.isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+                    color: post.isLiked ? ThemeConfig.primary : ThemeConfig.textSecondary,
                     size: 18,
                   ),
-                  label: const Text(
+                  label: Text(
                     'लाइक',
                     style: TextStyle(
-                      color: ThemeConfig.textSecondary,
+                      color: post.isLiked ? ThemeConfig.primary : ThemeConfig.textSecondary,
                       fontSize: 11,
+                      fontWeight: post.isLiked ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
                 ),
@@ -777,14 +805,34 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   void _toggleLike(int postId) async {
+    final newsProvider = context.read<NewsProvider>();
+    final index = newsProvider.trendingPosts.indexWhere((p) => p.id == postId);
+    if (index == -1) return;
+
+    final post = newsProvider.trendingPosts[index];
+    final originalIsLiked = post.isLiked;
+    final originalLikesCount = post.likesCount;
+
+    // Optimistically update locally
+    final updatedIsLiked = !post.isLiked;
+    final updatedLikesCount = post.likesCount + (updatedIsLiked ? 1 : -1);
+    newsProvider.toggleLikeLocally(postId, isLiked: updatedIsLiked, likesCount: updatedLikesCount);
+
     try {
       final dio = ApiClient().dio;
       final response = await dio.post('/api/v1/posts/$postId/like');
-      if (response.statusCode == 200 && mounted) {
-        _onTabChanged(_showDrafts);
+      if (response.statusCode == 200 && response.data != null) {
+        final newLikesCount = int.tryParse(response.data['likes_count'].toString()) ?? updatedLikesCount;
+        final String action = response.data['action'] ?? '';
+        newsProvider.toggleLikeLocally(postId, isLiked: (action == 'liked'), likesCount: newLikesCount);
+      } else {
+        // Rollback
+        newsProvider.toggleLikeLocally(postId, isLiked: originalIsLiked, likesCount: originalLikesCount);
       }
     } catch (e) {
       print('Error liking post: $e');
+      // Rollback
+      newsProvider.toggleLikeLocally(postId, isLiked: originalIsLiked, likesCount: originalLikesCount);
     }
   }
 

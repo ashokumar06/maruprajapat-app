@@ -6,8 +6,9 @@ class PostModel {
   final String postType;
   final String? textContent;
   final String? mediaUrl;
-  final int likesCount;
+  int likesCount;
   final int commentsCount;
+  bool isLiked;
   final bool isDraft;
   final String? youtubeUrl;
   final String? visibility;
@@ -19,6 +20,7 @@ class PostModel {
   final List<String>? pollOptions;
   final Map<String, dynamic>? pollVotes;
   final int? communityId;
+  final String? communityName;
 
   PostModel({
     required this.id,
@@ -30,6 +32,7 @@ class PostModel {
     this.mediaUrl,
     this.likesCount = 0,
     this.commentsCount = 0,
+    this.isLiked = false,
     this.isDraft = false,
     this.youtubeUrl,
     this.visibility,
@@ -41,6 +44,7 @@ class PostModel {
     this.pollOptions,
     this.pollVotes,
     this.communityId,
+    this.communityName,
   });
 
   factory PostModel.fromJson(Map<String, dynamic> json) {
@@ -77,6 +81,35 @@ class PostModel {
       communityId: json['community_id'] != null
           ? int.tryParse(json['community_id'].toString())
           : null,
+      communityName: json['community_name']?.toString(),
+      isLiked: json['is_liked'] == true,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'author_id': authorId,
+      'author_name': authorName,
+      'author_photo': authorPhoto,
+      'post_type': postType,
+      'text_content': textContent,
+      'media_url': mediaUrl,
+      'likes_count': likesCount,
+      'comments_count': commentsCount,
+      'is_draft': isDraft,
+      'youtube_url': youtubeUrl,
+      'visibility': visibility,
+      'is_pinned': isPinned,
+      'location_name': locationName,
+      'latitude': latitude,
+      'longitude': longitude,
+      'created_at': createdAt?.toIso8601String(),
+      'poll_options': pollOptions,
+      'poll_votes': pollVotes,
+      'community_id': communityId,
+      'community_name': communityName,
+      'is_liked': isLiked,
+    };
   }
 }

@@ -1,8 +1,23 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_client.dart';
 import '../models/post_model.dart';
 
 class NewsProvider extends ChangeNotifier {
+  Future<void> loadCachedNewsFeed() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString('cached_trending_posts');
+      if (jsonStr != null) {
+        final List decoded = json.decode(jsonStr);
+        _trendingPosts = decoded.map((e) => PostModel.fromJson(e)).toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error loading cached news feed: $e');
+    }
+  }
   List<PostModel> _trendingPosts = [];
   bool _isLoading = false;
   String? _error;
@@ -26,6 +41,14 @@ class NewsProvider extends ChangeNotifier {
           _trendingPosts = (data['items'] as List)
               .map((e) => PostModel.fromJson(e))
               .toList();
+          
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final jsonStr = json.encode(_trendingPosts.map((p) => p.toJson()).toList());
+            await prefs.setString('cached_trending_posts', jsonStr);
+          } catch (e) {
+            print('Error caching news feed: $e');
+          }
         }
       }
     } catch (e) {
@@ -152,5 +175,22 @@ class NewsProvider extends ChangeNotifier {
       print('Error voting on poll: $e');
     }
     return null;
+  }
+
+  void toggleLikeLocally(int postId, {required bool isLiked, required int likesCount}) async {
+    final index = _trendingPosts.indexWhere((p) => p.id == postId);
+    if (index != -1) {
+      _trendingPosts[index].isLiked = isLiked;
+      _trendingPosts[index].likesCount = likesCount;
+      notifyListeners();
+
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final jsonStr = json.encode(_trendingPosts.map((p) => p.toJson()).toList());
+        await prefs.setString('cached_trending_posts', jsonStr);
+      } catch (e) {
+        print('Error updating cached news feed: $e');
+      }
+    }
   }
 }

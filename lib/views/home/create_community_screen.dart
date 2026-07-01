@@ -2,8 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:dio/dio.dart';
+import 'package:provider/provider.dart';
 import '../../config/theme_config.dart';
 import '../../services/api_client.dart';
+import '../../providers/auth_provider.dart';
 
 class CreateCommunityScreen extends StatefulWidget {
   const CreateCommunityScreen({super.key});
@@ -20,9 +22,10 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
   
   String? _selectedCategory;
   bool _isSubmitting = false;
-  File? _logoFile;
-  bool _isUploadingLogo = false;
-  String? _logoError;
+
+  List<dynamic> _users = [];
+  bool _isLoadingUsers = false;
+  int? _selectedAdminId;
 
   final List<String> _categories = [
     'शिक्षा • सेवा',
@@ -34,66 +37,42 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _fetchUsers();
+  }
+
+  Future<void> _fetchUsers() async {
+    setState(() => _isLoadingUsers = true);
+    try {
+      final response = await ApiClient().dio.get('/api/v1/users/', queryParameters: {'per_page': 100});
+      if (response.data != null && response.data['items'] != null) {
+        setState(() {
+          _users = response.data['items'];
+          final currentUser = context.read<AuthProvider>().currentUserModel;
+          if (currentUser != null) {
+            final exists = _users.any((u) => u['id'] == currentUser.id);
+            if (exists) {
+              _selectedAdminId = currentUser.id;
+            } else if (_users.isNotEmpty) {
+              _selectedAdminId = _users.first['id'];
+            }
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching users: $e");
+    } finally {
+      setState(() => _isLoadingUsers = false);
+    }
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _descController.dispose();
     _locationController.dispose();
     super.dispose();
-  }
-
-  Future<void> _pickLogo() async {
-    setState(() {
-      _logoError = null;
-    });
-    try {
-      final pickedFile = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 70,
-      );
-
-      if (pickedFile != null) {
-        final file = File(pickedFile.path);
-        final int sizeInBytes = await file.length();
-        final double sizeInKB = sizeInBytes / 1024;
-
-        if (sizeInKB > 10.0) {
-          setState(() {
-            _logoError = Localizations.localeOf(context).languageCode == 'en'
-                ? 'Logo size must be maximum 10 KB (Selected: ${sizeInKB.toStringAsFixed(1)} KB)'
-                : 'लोगो का आकार अधिकतम 10 KB होना चाहिए (चयनित: ${sizeInKB.toStringAsFixed(1)} KB)';
-            _logoFile = null;
-          });
-        } else {
-          setState(() {
-            _logoFile = file;
-            _logoError = null;
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint("Error picking logo: $e");
-    }
-  }
-
-  Future<String?> _uploadLogo(File file) async {
-    setState(() => _isUploadingLogo = true);
-    try {
-      final dio = ApiClient().dio;
-      final fileName = file.path.split('/').last;
-      final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(file.path, filename: fileName),
-      });
-
-      final response = await dio.post('/api/v1/upload/image', data: formData);
-      if (response.statusCode == 200 && response.data != null) {
-        return response.data['url'];
-      }
-    } catch (e) {
-      debugPrint('Error uploading logo: $e');
-    } finally {
-      setState(() => _isUploadingLogo = false);
-    }
-    return null;
   }
 
   Future<void> _submitForm() async {
@@ -108,35 +87,30 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
 
     setState(() => _isSubmitting = true);
     try {
-      String? logoUrl;
-      if (_logoFile != null) {
-        logoUrl = await _uploadLogo(_logoFile!);
-        if (logoUrl == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(Localizations.localeOf(context).languageCode == 'en'
-                ? 'Failed to upload logo, please try again.'
-                : 'लोगो अपलोड करने में विफल, कृपया पुनः प्रयास करें।')),
-          );
-          setState(() => _isSubmitting = false);
-          return;
-        }
-      }
-
-      final response = await ApiClient().dio.post('/communities/', data: {
+      final response = await ApiClient().dio.post('/api/v1/communities/', data: {
         'name': _nameController.text.trim(),
         'category': _selectedCategory,
         'description': _descController.text.trim(),
         'location': _locationController.text.trim().isNotEmpty ? _locationController.text.trim() : null,
-        'logo_url': logoUrl,
+        'logo_url': null,
+        'admin_id': _selectedAdminId,
       });
 
       if (response.statusCode == 200 || response.statusCode == 201) {
+        final user = context.read<AuthProvider>().currentUserModel;
+        final role = (user?.role ?? 'guest').toLowerCase();
+        final isAdmin = role == 'admin' || role == 'superadmin';
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: Colors.green,
-            content: Text(Localizations.localeOf(context).languageCode == 'en'
-                ? 'Community request sent successfully! Admin approval required.'
-                : 'समुदाय निर्माण अनुरोध सफलतापूर्वक भेजा गया! एडमिन की स्वीकृति आवश्यक है।'),
+            content: Text(isAdmin
+                ? (Localizations.localeOf(context).languageCode == 'en'
+                    ? 'Community created successfully!'
+                    : 'समुदाय सफलतापूर्वक बनाया गया!')
+                : (Localizations.localeOf(context).languageCode == 'en'
+                    ? 'Community request sent successfully! Admin approval required.'
+                    : 'समुदाय निर्माण अनुरोध सफलतापूर्वक भेजा गया! एडमिन की स्वीकृति आवश्यक है।')),
           ),
         );
         Navigator.pop(context);
@@ -153,6 +127,9 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
   @override
   Widget build(BuildContext context) {
     final isEnglish = Localizations.localeOf(context).languageCode == 'en';
+    final user = context.watch<AuthProvider>().currentUserModel;
+    final role = (user?.role ?? 'guest').toLowerCase();
+    final isAdmin = role == 'admin' || role == 'superadmin';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -266,6 +243,51 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                   return null;
                 },
               ),
+              // Select Admin Dropdown
+              Text(
+                (isEnglish ? 'Select Community Admin' : 'समुदाय एडमिन चुनें') + ' *',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ThemeConfig.textPrimary),
+              ),
+              const SizedBox(height: 8),
+              _isLoadingUsers
+                  ? const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()))
+                  : DropdownButtonFormField<int>(
+                      value: _selectedAdminId,
+                      hint: Text(
+                        isEnglish ? 'Select Admin' : 'एडमिन चुनें',
+                        style: const TextStyle(color: ThemeConfig.textHint, fontSize: 13),
+                      ),
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                      items: _users.map<DropdownMenuItem<int>>((user) {
+                        final String name = user['full_name'] ?? '';
+                        final String gotra = user['gotra'] ?? '';
+                        final String displayName = gotra.isNotEmpty 
+                            ? '$name ($gotra)' 
+                            : name;
+                        return DropdownMenuItem<int>(
+                          value: user['id'] as int,
+                          child: Text(
+                            displayName,
+                            style: const TextStyle(fontSize: 13),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        setState(() {
+                          _selectedAdminId = val;
+                        });
+                      },
+                      validator: (val) {
+                        if (val == null) {
+                          return isEnglish ? 'Admin is required' : 'एडमिन चुनना अनिवार्य है';
+                        }
+                        return null;
+                      },
+                    ),
               const SizedBox(height: 16),
 
               // Description
@@ -310,69 +332,6 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Logo container with Working Pick Image size validation (< 10 KB)
-              Text(
-                isEnglish ? 'Community Logo (Max 10 KB)' : 'समुदाय का लोगो (अधिकतम 10 KB)',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ThemeConfig.textPrimary),
-              ),
-              const SizedBox(height: 8),
-              InkWell(
-                onTap: _pickLogo,
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: ThemeConfig.background,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: _logoError != null ? ThemeConfig.error : ThemeConfig.border,
-                      style: BorderStyle.solid,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        _logoFile != null ? Icons.check_circle_outline : Icons.upload_file,
-                        color: _logoFile != null ? Colors.green : ThemeConfig.primary,
-                        size: 24,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _logoFile != null
-                              ? (isEnglish ? 'Logo selected: ${_logoFile!.path.split('/').last}' : 'लोगो चयनित: ${_logoFile!.path.split('/').last}')
-                              : (isEnglish ? 'Upload Logo (Max 10 KB)' : 'लोगो अपलोड करें (अधिकतम 10 KB)'),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: _logoFile != null ? Colors.green : ThemeConfig.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (_logoFile != null)
-                        IconButton(
-                          icon: const Icon(Icons.close, color: ThemeConfig.error, size: 18),
-                          onPressed: () {
-                            setState(() {
-                              _logoFile = null;
-                            });
-                          },
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              if (_logoError != null) ...[
-                const SizedBox(height: 6),
-                Text(
-                  _logoError!,
-                  style: const TextStyle(color: ThemeConfig.error, fontSize: 11, fontWeight: FontWeight.w600),
-                ),
-              ],
-              const SizedBox(height: 16),
-
               // Location
               Text(
                 isEnglish ? 'Community Location' : 'समुदाय का स्थान',
@@ -410,16 +369,18 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: (_isSubmitting || _isUploadingLogo || _logoError != null) ? null : _submitForm,
+                      onPressed: _isSubmitting ? null : _submitForm,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: ThemeConfig.primary,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
-                      child: (_isSubmitting || _isUploadingLogo)
+                      child: _isSubmitting
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                           : Text(
-                              isEnglish ? 'Submit Request' : 'अनुरोध भेजें',
+                              isAdmin
+                                  ? (isEnglish ? 'Create' : 'बनाएं')
+                                  : (isEnglish ? 'Submit Request' : 'अनुरोध भेजें'),
                               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                             ),
                     ),

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../providers/news_provider.dart';
+import '../../services/api_client.dart';
+import '../news/news_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../config/theme_config.dart';
@@ -1018,22 +1022,23 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 TextButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(
-                    Icons.thumb_up_outlined,
-                    color: ThemeConfig.textSecondary,
+                  onPressed: () => _toggleLike(post.id),
+                  icon: Icon(
+                    post.isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+                    color: post.isLiked ? ThemeConfig.primary : ThemeConfig.textSecondary,
                     size: 18,
                   ),
-                  label: const Text(
+                  label: Text(
                     'लाइक',
                     style: TextStyle(
-                      color: ThemeConfig.textSecondary,
+                      color: post.isLiked ? ThemeConfig.primary : ThemeConfig.textSecondary,
                       fontSize: 11,
+                      fontWeight: post.isLiked ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
                 ),
                 TextButton.icon(
-                  onPressed: () {},
+                  onPressed: () => _showCommentsSheet(post),
                   icon: const Icon(
                     Icons.chat_bubble_outline,
                     color: ThemeConfig.textSecondary,
@@ -1048,7 +1053,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 TextButton.icon(
-                  onPressed: () {},
+                  onPressed: () => _sharePost(post.id),
                   icon: const Icon(
                     Icons.share_outlined,
                     color: ThemeConfig.textSecondary,
@@ -1089,5 +1094,69 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       );
+  }
+
+  void _toggleLike(int postId) async {
+    final newsProvider = context.read<NewsProvider>();
+    final index = newsProvider.trendingPosts.indexWhere((p) => p.id == postId);
+    if (index == -1) return;
+
+    final post = newsProvider.trendingPosts[index];
+    final originalIsLiked = post.isLiked;
+    final originalLikesCount = post.likesCount;
+
+    // Optimistically update locally
+    final updatedIsLiked = !post.isLiked;
+    final updatedLikesCount = post.likesCount + (updatedIsLiked ? 1 : -1);
+    newsProvider.toggleLikeLocally(postId, isLiked: updatedIsLiked, likesCount: updatedLikesCount);
+
+    try {
+      final dio = ApiClient().dio;
+      final response = await dio.post('/api/v1/posts/$postId/like');
+      if (response.statusCode == 200 && response.data != null) {
+        final newLikesCount = int.tryParse(response.data['likes_count'].toString()) ?? updatedLikesCount;
+        final String action = response.data['action'] ?? '';
+        newsProvider.toggleLikeLocally(postId, isLiked: (action == 'liked'), likesCount: newLikesCount);
+      } else {
+        // Rollback
+        newsProvider.toggleLikeLocally(postId, isLiked: originalIsLiked, likesCount: originalLikesCount);
+      }
+    } catch (e) {
+      debugPrint('Error liking post: $e');
+      // Rollback
+      newsProvider.toggleLikeLocally(postId, isLiked: originalIsLiked, likesCount: originalLikesCount);
+    }
+  }
+
+  void _sharePost(int postId) {
+    final link = 'maruprajapat://posts/$postId';
+    Clipboard.setData(ClipboardData(text: link));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('शेयर लिंक कॉपी कर लिया गया है! इसे शेयर करें।'),
+        backgroundColor: ThemeConfig.success,
+      ),
+    );
+  }
+
+  void _showCommentsSheet(PostModel post) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: CommentsSheetContent(
+            post: post,
+            onCommentAdded: () {},
+          ),
+        );
+      },
+    );
   }
 }
