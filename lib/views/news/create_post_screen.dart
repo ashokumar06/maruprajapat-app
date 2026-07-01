@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:dio/dio.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../../config/theme_config.dart';
 import '../../providers/news_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -17,7 +17,8 @@ import '../widgets/post_content_view.dart';
 
 class CreatePostScreen extends StatefulWidget {
   final PostModel? postToEdit;
-  const CreatePostScreen({super.key, this.postToEdit});
+  final int? communityId;
+  const CreatePostScreen({super.key, this.postToEdit, this.communityId});
 
   @override
   State<CreatePostScreen> createState() => _CreatePostScreenState();
@@ -713,7 +714,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         return;
       }
 
-      if (ytUrl.isNotEmpty && YoutubePlayer.convertUrlToId(ytUrl) == null) {
+      if (ytUrl.isNotEmpty && YoutubePlayerController.convertUrlToId(ytUrl) == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -817,6 +818,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 longitude: _longitude,
                 pollOptions: pollOptions,
                 visibility: _selectedVisibility,
+                communityId: widget.communityId,
               );
 
         if (success && mounted) {

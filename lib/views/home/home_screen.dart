@@ -9,6 +9,7 @@ import '../widgets/inline_youtube_player.dart';
 import '../widgets/post_content_view.dart';
 import '../widgets/poll_view.dart';
 import '../profile/profile_screen.dart';
+import '../profile/apply_membership_screen.dart';
 import '../explore/explore_screen.dart';
 import 'members_list_screen.dart';
 import 'community_screen.dart';
@@ -19,6 +20,7 @@ import 'market_screen.dart';
 import 'schemes_screen.dart';
 import 'admin_approvals_screen.dart';
 import 'all_people_screen.dart';
+import '../main/notifications_tab.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -52,9 +54,10 @@ class _HomeScreenState extends State<HomeScreen> {
             }
 
             final user = authProvider.currentUserModel;
+            final isEnglish = Localizations.localeOf(context).languageCode == 'en';
             final displayText = (user != null && user.fullName.isNotEmpty)
                 ? user.fullName
-                : 'श्री मारू प्रजापत समाज';
+                : (isEnglish ? 'Shree Maru Prajapat Samaj' : 'श्री मारू प्रजापत समाज');
 
             return RefreshIndicator(
               onRefresh: () => context.read<HomeProvider>().fetchHomeData(),
@@ -114,7 +117,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                     color: ThemeConfig.textPrimary,
                                   ),
                                 ),
-                                onPressed: () {},
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const NotificationsTab(),
+                                    ),
+                                  );
+                                },
                               ),
                               const SizedBox(width: 8),
                               InkWell(
@@ -221,8 +231,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (homeProvider.notices.isNotEmpty) ...[
                     SliverToBoxAdapter(
                       child: _buildSectionHeader(
-                        'महत्वपूर्ण सूचना',
-                        'सभी देखें >',
+                        isEnglish ? 'Important Notices' : 'महत्वपूर्ण सूचना',
+                        isEnglish ? 'View All >' : 'सभी देखें >',
                       ),
                     ),
                     SliverToBoxAdapter(
@@ -278,84 +288,126 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   // 5. Quick Actions (त्वरित कार्य)
                   SliverToBoxAdapter(
-                    child: _buildSectionHeader('त्वरित कार्य', 'सभी देखें >'),
+                    child: _buildSectionHeader(
+                      isEnglish ? 'Quick Actions' : 'त्वरित कार्य', 
+                      isEnglish ? 'View All >' : 'सभी देखें >',
+                      onTapAction: () => _showMoreServicesSheet(context, user, isEnglish),
+                    ),
                   ),
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: GridView.count(
-                        crossAxisCount: 5,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        children: [
-                          _buildActionIcon(Icons.people, 'सदस्य सूची', () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const MembersListScreen(),
-                              ),
-                            );
-                          }),
-                          _buildActionIcon(Icons.account_balance, 'समाज', () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const CommunityScreen(),
-                              ),
-                            );
-                          }),
-                          _buildActionIcon(Icons.event, 'कार्यक्रम', () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const EventsScreen(),
-                              ),
-                            );
-                          }),
-                          _buildActionIcon(Icons.storefront, 'व्यवसाय', () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const ExploreScreen(),
-                              ),
-                            );
-                          }),
-                          _buildActionIcon(Icons.report_problem, 'शिकायत', () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const ComplaintsScreen(),
-                              ),
-                            );
-                          }),
-                          _buildActionIcon(Icons.campaign, 'नोटिस', () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const NoticesScreen(),
-                              ),
-                            );
-                          }),
-                          _buildActionIcon(Icons.shopping_bag, 'बाजार', () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const MarketScreen(),
-                              ),
-                            );
-                          }),
-                          _buildActionIcon(Icons.school, 'योजनाएं', () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const SchemesScreen(),
-                              ),
-                            );
-                          }),
-                          _buildActionIcon(Icons.more_horiz, 'और सेवांए', () {
-                            _showMoreServicesSheet(context, user);
-                          }),
-                        ],
+                      child: Builder(
+                        builder: (context) {
+                          final role = user?.role;
+                          final List<Widget> actionIcons = [];
+
+                          if (role == null || role == 'guest') {
+                            // Guest actions (Public only)
+                            actionIcons.addAll([
+                              _buildActionIcon(Icons.event, isEnglish ? 'Events' : 'कार्यक्रम', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const EventsScreen()));
+                              }),
+                              _buildActionIcon(Icons.campaign, isEnglish ? 'Notices' : 'नोटिस', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const NoticesScreen()));
+                              }),
+                            ]);
+                          } else if (role == 'member') {
+                            // Member actions - Limited to max 9 items + More Services (total 10 items = exactly 2 rows)
+                            actionIcons.addAll([
+                              _buildActionIcon(Icons.people, isEnglish ? 'Members' : 'सदस्य सूची', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const MembersListScreen()));
+                              }),
+                              _buildActionIcon(Icons.account_balance, isEnglish ? 'Community' : 'समाज', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunityScreen()));
+                              }),
+                              _buildActionIcon(Icons.event, isEnglish ? 'Events' : 'कार्यक्रम', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const EventsScreen()));
+                              }),
+                              _buildActionIcon(Icons.storefront, isEnglish ? 'Business' : 'व्यवसाय', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const ExploreScreen()));
+                              }),
+                              _buildActionIcon(Icons.report_problem, isEnglish ? 'Complaint' : 'शिकायत', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const ComplaintsScreen()));
+                              }),
+                              _buildActionIcon(Icons.campaign, isEnglish ? 'Notices' : 'नोटिस', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const NoticesScreen()));
+                              }),
+                              _buildActionIcon(Icons.shopping_bag, isEnglish ? 'Market' : 'बाजार', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const MarketScreen()));
+                              }),
+                              _buildActionIcon(Icons.school, isEnglish ? 'Schemes' : 'योजनाएं', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const SchemesScreen()));
+                              }),
+                              _buildActionIcon(Icons.people_outline, isEnglish ? 'Profiles' : 'सभी प्रोफाइल', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const AllPeopleScreen()));
+                              }),
+                              _buildActionIcon(Icons.more_horiz, isEnglish ? 'More' : 'और सेवाएं', () {
+                                _showMoreServicesSheet(context, user, isEnglish);
+                              }),
+                            ]);
+                          } else if (role == 'admin' || role == 'superadmin') {
+                            // Admin actions - Limited to max 9 items + More Services (total 10 items = exactly 2 rows)
+                            actionIcons.addAll([
+                              _buildActionIcon(Icons.people, isEnglish ? 'Members' : 'सदस्य सूची', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const MembersListScreen()));
+                              }),
+                              _buildActionIcon(Icons.how_to_reg, isEnglish ? 'Approvals' : 'सदस्यता अनुमोदन', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminApprovalsScreen()));
+                              }),
+                              _buildActionIcon(Icons.account_balance, isEnglish ? 'Community' : 'समाज', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunityScreen()));
+                              }),
+                              _buildActionIcon(Icons.event, isEnglish ? 'Events' : 'कार्यक्रम', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const EventsScreen()));
+                              }),
+                              _buildActionIcon(Icons.storefront, isEnglish ? 'Business' : 'व्यवसाय', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const ExploreScreen()));
+                              }),
+                              _buildActionIcon(Icons.report_problem, isEnglish ? 'Complaint' : 'शिकायत', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const ComplaintsScreen()));
+                              }),
+                              _buildActionIcon(Icons.campaign, isEnglish ? 'Notices' : 'नोटिस', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const NoticesScreen()));
+                              }),
+                              _buildActionIcon(Icons.shopping_bag, isEnglish ? 'Market' : 'बाजार', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const MarketScreen()));
+                              }),
+                              _buildActionIcon(Icons.school, isEnglish ? 'Schemes' : 'योजनाएं', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const SchemesScreen()));
+                              }),
+                              _buildActionIcon(Icons.more_horiz, isEnglish ? 'More' : 'और सेवाएं', () {
+                                _showMoreServicesSheet(context, user, isEnglish);
+                              }),
+                            ]);
+                          } else {
+                            // Default registered but unverified user
+                            actionIcons.addAll([
+                              _buildActionIcon(Icons.event, isEnglish ? 'Events' : 'कार्यक्रम', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const EventsScreen()));
+                              }),
+                              _buildActionIcon(Icons.campaign, isEnglish ? 'Notices' : 'नोटिस', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const NoticesScreen()));
+                              }),
+                              _buildActionIcon(Icons.report_problem, isEnglish ? 'Complaint' : 'शिकायत', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const ComplaintsScreen()));
+                              }),
+                              _buildActionIcon(Icons.card_membership, isEnglish ? 'Apply Member' : 'सदस्यता आवेदन', () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const ApplyMembershipScreen()));
+                              }),
+                              _buildActionIcon(Icons.more_horiz, isEnglish ? 'More' : 'और सेवाएं', () {
+                                _showMoreServicesSheet(context, user, isEnglish);
+                              }),
+                            ]);
+                          }
+
+                          return GridView.count(
+                            crossAxisCount: 5,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            children: actionIcons,
+                          );
+                        }
                       ),
                     ),
                   ),
@@ -363,8 +415,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   // 6. Community Updates (समाज अपडेट)
                   SliverToBoxAdapter(
                     child: _buildSectionHeader(
-                      'समाज अपडेट',
-                      'सभी पोस्ट देखें >',
+                      isEnglish ? 'Community Updates' : 'समाज अपडेट',
+                      isEnglish ? 'View All Posts >' : 'सभी पोस्ट देखें >',
                     ),
                   ),
                   SliverList(
@@ -385,7 +437,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title, String actionLabel) {
+  Widget _buildSectionHeader(String title, String actionLabel, {VoidCallback? onTapAction}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Row(
@@ -399,12 +451,15 @@ class _HomeScreenState extends State<HomeScreen> {
               color: ThemeConfig.textPrimary,
             ),
           ),
-          Text(
-            actionLabel,
-            style: const TextStyle(
-              fontSize: 14,
-              color: ThemeConfig.primary,
-              fontWeight: FontWeight.w600,
+          InkWell(
+            onTap: onTapAction,
+            child: Text(
+              actionLabel,
+              style: const TextStyle(
+                fontSize: 14,
+                color: ThemeConfig.primary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -512,15 +567,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showMoreServicesSheet(BuildContext context, dynamic user) {
+  void _showMoreServicesSheet(BuildContext context, dynamic user, bool isEnglish) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        final isAdmin = user?.role == 'admin' || user?.role == 'superadmin';
-        final isMemberOrAdmin = user?.role == 'member' || isAdmin;
+        final role = user?.role;
+        final isAdmin = role == 'admin' || role == 'superadmin';
+        final isMemberOrAdmin = role == 'member' || isAdmin;
         return Padding(
           padding: const EdgeInsets.all(20.0),
           child: Column(
@@ -530,9 +586,9 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'और सेवाएं (More Services)',
-                    style: TextStyle(
+                  Text(
+                    isEnglish ? 'More Services' : 'और सेवाएं',
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: ThemeConfig.textPrimary,
@@ -556,23 +612,23 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisSpacing: 16,
                 physics: const NeverScrollableScrollPhysics(),
                 children: [
-                  _buildMoreServiceItem(context, Icons.favorite, 'विवाह', () {
+                  _buildMoreServiceItem(context, Icons.favorite, isEnglish ? 'Marriage' : 'विवाह', () {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('वैवाहिक सेवा जल्द ही उपलब्ध होगी।'),
+                      SnackBar(
+                        content: Text(isEnglish ? 'Matrimony service will be available soon.' : 'वैवाहिक सेवा जल्द ही उपलब्ध होगी।'),
                       ),
                     );
                   }),
                   _buildMoreServiceItem(
                     context,
                     Icons.bloodtype,
-                    'रक्त दान',
+                    isEnglish ? 'Blood' : 'रक्त दान',
                     () {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('रक्तदान सेवा जल्द ही उपलब्ध होगी।'),
+                        SnackBar(
+                          content: Text(isEnglish ? 'Blood donation service will be available soon.' : 'रक्तदान सेवा जल्द ही उपलब्ध होगी।'),
                         ),
                       );
                     },
@@ -580,114 +636,52 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildMoreServiceItem(
                     context,
                     Icons.account_balance_outlined,
-                    'मन्दिर/मठ',
+                    isEnglish ? 'Temple' : 'मन्दिर/मठ',
                     () {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('मन्दिर सूची जल्द ही उपलब्ध होगी।'),
+                        SnackBar(
+                          content: Text(isEnglish ? 'Temple list will be available soon.' : 'मन्दिर सूची जल्द ही उपलब्ध होगी।'),
                         ),
                       );
                     },
                   ),
-                  _buildMoreServiceItem(context, Icons.work, 'नौकरियाँ', () {
+                  _buildMoreServiceItem(context, Icons.work, isEnglish ? 'Jobs' : 'नौकरियाँ', () {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('रोजगार सूचनाएं जल्द ही उपलब्ध होंगी।'),
+                      SnackBar(
+                        content: Text(isEnglish ? 'Job notifications will be available soon.' : 'रोजगार सूचनाएं जल्द ही उपलब्ध होंगी।'),
                       ),
                     );
                   }),
+                  
+                  // Overflowed items moved here
+                  if (isMemberOrAdmin) ...[
+                    _buildMoreServiceItem(context, Icons.people_outline, isEnglish ? 'Profiles' : 'सभी प्रोफाइल', () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const AllPeopleScreen()));
+                    }),
+                    _buildMoreServiceItem(context, Icons.assignment_outlined, isEnglish ? 'Exam' : 'परीक्षा', () {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(isEnglish ? 'Exam services will be available soon.' : 'परीक्षा सेवाएं जल्द ही उपलब्ध होंगी।'),
+                          backgroundColor: ThemeConfig.primary,
+                        ),
+                      );
+                    }),
+                    _buildMoreServiceItem(context, Icons.emoji_events_outlined, isEnglish ? 'Result' : 'परिणाम', () {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(isEnglish ? 'Exam results will be available soon.' : 'परीक्षा परिणाम जल्द ही उपलब्ध होंगे।'),
+                          backgroundColor: ThemeConfig.primary,
+                        ),
+                      );
+                    }),
+                  ],
                 ],
               ),
-
-              if (isAdmin) ...[
-                const SizedBox(height: 24),
-                const Divider(color: ThemeConfig.divider),
-                const SizedBox(height: 12),
-                const Text(
-                  'प्रशासनिक कार्य (Admin Controls)',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: ThemeConfig.primary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        icon: const Icon(
-                          Icons.admin_panel_settings,
-                          color: Colors.white,
-                        ),
-                        label: const Text(
-                          'सदस्यता अनुमोदन',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const AdminApprovalsScreen(),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: ThemeConfig.primary,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-              if (isMemberOrAdmin) ...[
-                const SizedBox(height: 24),
-                const Divider(color: ThemeConfig.divider),
-                const SizedBox(height: 12),
-                const Text(
-                  'विशेष सेवाएं (Special Directory)',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: ThemeConfig.primary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(
-                          Icons.people_outline,
-                          color: ThemeConfig.primary,
-                        ),
-                        label: const Text(
-                          'सभी प्रोफाइल (All Profiles)',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const AllPeopleScreen(),
-                            ),
-                          );
-                        },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: ThemeConfig.primary,
-                          side: const BorderSide(color: ThemeConfig.primary),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
             ],
           ),
         );
@@ -814,7 +808,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            if (post.textContent != null && post.textContent!.isNotEmpty && post.postType != 'poll') ...[
+            if (post.textContent != null && post.textContent!.isNotEmpty) ...[
               Builder(
                 builder: (context) {
                   final text = post.textContent!;
@@ -858,10 +852,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
             ],
-            if (post.postType == 'poll') ...[
-              const SizedBox(height: 12),
-              PollView(post: post),
-            ],
             if (post.youtubeUrl != null && post.youtubeUrl!.isNotEmpty) ...[
               const SizedBox(height: 12),
               InlineYoutubePlayer(videoUrl: post.youtubeUrl!),
@@ -872,6 +862,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.circular(12),
                 child: Image.network(post.mediaUrl!, fit: BoxFit.cover),
               ),
+            ],
+            if (post.postType == 'poll') ...[
+              const SizedBox(height: 12),
+              PollView(post: post),
             ],
             Builder(
               builder: (context) {

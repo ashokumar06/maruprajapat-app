@@ -5,7 +5,7 @@ import '../../models/post_model.dart';
 import '../../providers/news_provider.dart';
 import '../../providers/home_provider.dart';
 import '../../providers/auth_provider.dart';
-import 'post_content_view.dart';
+
 
 class PollView extends StatefulWidget {
   final PostModel post;
@@ -47,18 +47,7 @@ class _PollViewState extends State<PollView> {
 
     final hasVoted = votedOptionIndexStr != null;
 
-    // Parse question and subtitle from post.textContent
-    final text = post.textContent ?? '';
-    final parts = text.split('\n\n').where((p) => p.trim().isNotEmpty).toList();
     String question = 'आपकी क्या राय है?';
-    String? subtitle;
-
-    if (parts.isNotEmpty) {
-      question = parts[0];
-      if (parts.length > 1) {
-        subtitle = parts.sublist(1).join('\n\n');
-      }
-    }
 
     final createdAt = post.createdAt ?? DateTime.now();
     final expiryDate = createdAt.add(const Duration(days: 5));
@@ -83,17 +72,6 @@ class _PollViewState extends State<PollView> {
               height: 1.35,
             ),
           ),
-          if (subtitle != null && subtitle.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            PostContentView(
-              text: subtitle,
-              style: const TextStyle(
-                fontSize: 13,
-                color: ThemeConfig.textSecondary,
-                height: 1.35,
-              ),
-            ),
-          ],
           const SizedBox(height: 16),
           ...List.generate(options.length, (index) {
             final optionText = options[index];

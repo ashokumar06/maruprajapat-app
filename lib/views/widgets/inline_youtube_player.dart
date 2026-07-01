@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/theme_config.dart';
 
@@ -22,7 +23,6 @@ class InlineYoutubePlayer extends StatefulWidget {
 class _InlineYoutubePlayerState extends State<InlineYoutubePlayer> {
   YoutubePlayerController? _controller;
   String? _videoId;
-  bool _didTryUnmute = false;
 
   @override
   void initState() {
@@ -34,34 +34,34 @@ class _InlineYoutubePlayerState extends State<InlineYoutubePlayer> {
   void didUpdateWidget(covariant InlineYoutubePlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.videoUrl != widget.videoUrl) {
-      _controller?.dispose();
+      _controller?.close();
       _initializeController();
     }
   }
 
   void _initializeController() {
-    _videoId = YoutubePlayer.convertUrlToId(widget.videoUrl);
+    _videoId = YoutubePlayerController.convertUrlToId(widget.videoUrl);
     if (_videoId == null || _videoId!.isEmpty) {
       _controller = null;
       return;
     }
 
     _controller = YoutubePlayerController(
-      initialVideoId: _videoId!,
-      flags: const YoutubePlayerFlags(
-        autoPlay: true,
+      params: const YoutubePlayerParams(
+        showControls: true,
+        showFullscreenButton: true,
         mute: true,
-        controlsVisibleAtStart: true,
-        disableDragSeek: false,
-        enableCaption: false,
-        useHybridComposition: false,
+        strictRelatedVideos: true,
+        origin: 'https://www.youtube.com',
       ),
     );
+    
+    _controller!.loadVideoById(videoId: _videoId!);
   }
 
   @override
   void dispose() {
-    _controller?.dispose();
+    _controller?.close();
     super.dispose();
   }
 
@@ -83,28 +83,39 @@ class _InlineYoutubePlayerState extends State<InlineYoutubePlayer> {
       );
     }
 
-    return ClipRRect(
-      borderRadius: widget.borderRadius,
-      child: AspectRatio(
-        aspectRatio: widget.aspectRatio,
-        child: YoutubePlayer(
-          controller: _controller!,
-          aspectRatio: widget.aspectRatio,
-          showVideoProgressIndicator: true,
-          progressIndicatorColor: ThemeConfig.primary,
-          onReady: () {
-            _controller?.play();
-            if (!_didTryUnmute) {
-              _didTryUnmute = true;
-              Future.delayed(const Duration(milliseconds: 900), () {
-                if (mounted) {
-                  _controller?.unMute();
-                }
-              });
-            }
-          },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ClipRRect(
+          borderRadius: widget.borderRadius,
+          child: YoutubePlayer(
+            controller: _controller!,
+            aspectRatio: widget.aspectRatio,
+          ),
         ),
-      ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: () async {
+              final url = Uri.parse(widget.videoUrl);
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url, mode: LaunchMode.externalApplication);
+              }
+            },
+            icon: const Icon(Icons.open_in_new, size: 16, color: ThemeConfig.primary),
+            label: const Text(
+              'YouTube पर देखें',
+              style: TextStyle(fontSize: 12, color: ThemeConfig.primary, fontWeight: FontWeight.bold),
+            ),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              backgroundColor: ThemeConfig.primary.withOpacity(0.1),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

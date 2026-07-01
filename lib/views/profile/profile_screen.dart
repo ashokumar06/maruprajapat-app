@@ -12,6 +12,7 @@ import '../auth/login_screen.dart';
 import "edit_profile_screen.dart";
 import 'apply_membership_screen.dart';
 import 'my_applications_screen.dart';
+import 'app_info_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -702,6 +703,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onTap: () {
                   MyApp.setLocale(context, const Locale('en', ''));
                   Navigator.pop(context);
+                },
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.info_outline, color: ThemeConfig.primary),
+                title: const Text('ऐप जानकारी (App Info)', style: TextStyle(fontWeight: FontWeight.bold)),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AppInfoScreen()),
+                  );
                 },
               ),
             ],

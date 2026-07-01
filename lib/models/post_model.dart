@@ -18,6 +18,7 @@ class PostModel {
   final DateTime? createdAt;
   final List<String>? pollOptions;
   final Map<String, dynamic>? pollVotes;
+  final int? communityId;
 
   PostModel({
     required this.id,
@@ -39,6 +40,7 @@ class PostModel {
     this.createdAt,
     this.pollOptions,
     this.pollVotes,
+    this.communityId,
   });
 
   factory PostModel.fromJson(Map<String, dynamic> json) {
@@ -71,6 +73,9 @@ class PostModel {
           : null,
       pollVotes: json['poll_votes'] != null
           ? Map<String, dynamic>.from(json['poll_votes'])
+          : null,
+      communityId: json['community_id'] != null
+          ? int.tryParse(json['community_id'].toString())
           : null,
     );
   }

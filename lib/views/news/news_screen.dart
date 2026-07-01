@@ -419,7 +419,7 @@ class _NewsScreenState extends State<NewsScreen> {
             const SizedBox(height: 12),
 
             // Text Content (polls render their text inside PollView)
-            if (post.textContent != null && post.textContent!.isNotEmpty && post.postType != 'poll') ...[
+            if (post.textContent != null && post.textContent!.isNotEmpty) ...[
               Builder(
                 builder: (context) {
                   final text = post.textContent!;
@@ -464,11 +464,6 @@ class _NewsScreenState extends State<NewsScreen> {
               const SizedBox(height: 12),
             ],
 
-            if (post.postType == 'poll') ...[
-              PollView(post: post),
-              const SizedBox(height: 12),
-            ],
-
             // Video Player
             if (post.youtubeUrl != null && post.youtubeUrl!.isNotEmpty) ...[
               InlineYoutubePlayer(videoUrl: post.youtubeUrl!),
@@ -484,6 +479,11 @@ class _NewsScreenState extends State<NewsScreen> {
                   width: double.infinity,
                 ),
               ),
+              const SizedBox(height: 12),
+            ],
+
+            if (post.postType == 'poll') ...[
+              PollView(post: post),
               const SizedBox(height: 12),
             ],
 
@@ -857,7 +857,7 @@ class _CommentsSheetContentState extends State<CommentsSheetContent> {
     try {
       final dio = ApiClient().dio;
       final response = await dio.get(
-        '/api/v1/posts/${widget.post.id}/comments?page=1&per_page=100',
+        '/api/v1/posts/${widget.post.id}/comments?page=1&per_page=50',
       );
       if (response.statusCode == 200 && response.data != null) {
         setState(() {

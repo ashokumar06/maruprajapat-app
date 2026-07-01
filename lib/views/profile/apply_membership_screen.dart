@@ -31,16 +31,18 @@ class _ApplyMembershipScreenState extends State<ApplyMembershipScreen> {
   void initState() {
     super.initState();
     final user = context.read<AuthProvider>().currentUserModel;
-    _fullNameController = TextEditingController(text: user?.fullName ?? '');
-    _fatherNameController = TextEditingController(text: user?.fatherName ?? '');
-    _motherNameController = TextEditingController();
-    _villageController = TextEditingController(text: user?.village ?? '');
-    _districtController = TextEditingController(text: user?.district ?? '');
-    _gotraController = TextEditingController(text: user?.gotra ?? '');
-    _phoneController = TextEditingController(text: user?.contactNumber ?? '');
-    _occupationController = TextEditingController();
-    _educationController = TextEditingController();
-    _referenceController = TextEditingController();
+    final latestReq = context.read<MembershipProvider>().latestRequest;
+
+    _fullNameController = TextEditingController(text: latestReq?.fullName ?? user?.fullName ?? '');
+    _fatherNameController = TextEditingController(text: latestReq?.fatherName ?? user?.fatherName ?? '');
+    _motherNameController = TextEditingController(text: latestReq?.motherName ?? '');
+    _villageController = TextEditingController(text: latestReq?.village ?? user?.village ?? '');
+    _districtController = TextEditingController(text: latestReq?.district ?? user?.district ?? '');
+    _gotraController = TextEditingController(text: latestReq?.gotra ?? user?.gotra ?? '');
+    _phoneController = TextEditingController(text: latestReq?.contactNumber ?? user?.contactNumber ?? '');
+    _occupationController = TextEditingController(text: latestReq?.occupation ?? '');
+    _educationController = TextEditingController(text: latestReq?.education ?? '');
+    _referenceController = TextEditingController(text: latestReq?.referencePerson ?? '');
   }
 
   @override

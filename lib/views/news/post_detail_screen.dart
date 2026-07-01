@@ -62,7 +62,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     try {
       final dio = ApiClient().dio;
       final response = await dio.get(
-        '/api/v1/posts/${widget.postId}/comments?page=1&per_page=100',
+        '/api/v1/posts/${widget.postId}/comments?page=1&per_page=50',
       );
       if (response.statusCode == 200 && response.data != null) {
         setState(() {

@@ -49,6 +49,7 @@ class NewsProvider extends ChangeNotifier {
     double? longitude,
     List<String>? pollOptions,
     String? visibility,
+    int? communityId,
   }) async {
     try {
       final client = ApiClient().dio;
@@ -64,6 +65,7 @@ class NewsProvider extends ChangeNotifier {
         'longitude': longitude,
         'poll_options': pollOptions,
         'visibility': visibility,
+        'community_id': communityId,
       });
 
       if (response.statusCode == 201) {

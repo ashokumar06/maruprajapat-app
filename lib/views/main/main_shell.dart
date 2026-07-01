@@ -5,6 +5,8 @@ import '../home/home_screen.dart';
 import '../news/news_screen.dart';
 import '../forms/forms_screen.dart';
 import '../honours/honours_screen.dart';
+import 'notifications_tab.dart';
+import '../home/community_groups_tab.dart';
 import '../explore/explore_screen.dart';
 
 import 'package:url_launcher/url_launcher.dart';
@@ -28,10 +30,10 @@ class _MainShellState extends State<MainShell> {
 
   final List<Widget> _screens = [
     const HomeScreen(),
-    const NewsScreen(),
-    const ExploreScreen(),
     const FormsScreen(),
+    const NewsScreen(),
     const HonoursScreen(),
+    const CommunityGroupsTab(),
   ];
 
   void _onItemTapped(int index) {
@@ -42,6 +44,7 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    final isEnglish = Localizations.localeOf(context).languageCode == 'en';
     return Scaffold(
       body: NotificationListener<ScrollNotification>(
         onNotification: (ScrollNotification notification) {
@@ -91,11 +94,11 @@ class _MainShellState extends State<MainShell> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _buildNavItem(0, Icons.home_outlined, Icons.home, 'होम'),
-                        _buildNavItem(1, Icons.article_outlined, Icons.article, 'न्यूज़'),
-                        _buildNavItem(2, Icons.search, Icons.search, 'अन्वेषण'),
-                        _buildNavItem(3, Icons.list_alt_outlined, Icons.list_alt, 'फॉर्म'),
-                        _buildNavItem(4, Icons.military_tech_outlined, Icons.military_tech, 'गौरव'),
+                        _buildNavItem(0, Icons.home_outlined, Icons.home, isEnglish ? 'Home' : 'होम'),
+                        _buildNavItem(1, Icons.list_alt_outlined, Icons.list_alt, isEnglish ? 'Forms' : 'फॉर्म'),
+                        _buildNavItem(2, Icons.article_outlined, Icons.article, isEnglish ? 'News' : 'न्यूज़'),
+                        _buildNavItem(3, Icons.military_tech_outlined, Icons.military_tech, isEnglish ? 'Honours' : 'गौरव'),
+                        _buildNavItem(4, Icons.people_outline, Icons.people, isEnglish ? 'Communities' : 'समुदाय'),
                       ],
                     ),
                   ),
