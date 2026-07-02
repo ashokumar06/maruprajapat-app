@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../config/theme_config.dart';
 import '../../models/post_model.dart';
+import '../../providers/news_provider.dart';
+import '../../providers/home_provider.dart';
+import 'package:provider/provider.dart';
 import '../../services/api_client.dart';
 import '../widgets/inline_youtube_player.dart';
 import '../widgets/post_content_view.dart';
@@ -81,7 +85,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     try {
       final dio = ApiClient().dio;
       final response = await dio.post('/api/v1/posts/${_post!.id}/like');
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 && response.data != null) {
+        final newLikesCount = int.tryParse(response.data['likes_count'].toString()) ?? _post!.likesCount;
+        final String action = response.data['action'] ?? '';
+        context.read<NewsProvider>().toggleLikeLocally(_post!.id, isLiked: (action == 'liked'), likesCount: newLikesCount);
+        context.read<HomeProvider>().toggleLikeLocally(_post!.id, isLiked: (action == 'liked'), likesCount: newLikesCount);
         _fetchPostDetails();
       }
     } catch (e) {
@@ -90,14 +98,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
 
   void _sharePost() {
-    final link = 'maruprajapat://posts/${widget.postId}';
-    Clipboard.setData(ClipboardData(text: link));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('शेयर लिंक कॉपी कर लिया गया है! इसे शेयर करें।'),
-        backgroundColor: ThemeConfig.success,
-      ),
-    );
+    final appUrl = 'https://play.google.com/store/apps/details?id=com.maruprajapat.app';
+    final postLink = 'maruprajapat://posts/${widget.postId}';
+    final textToShare = 'इस बेहतरीन पोस्ट को श्री मारू प्रजापत समाज ऐप पर देखें!\n\nपोस्ट लिंक: $postLink\nऐप डाउनलोड करें: $appUrl';
+    Share.share(textToShare);
   }
 
   Future<void> _submitComment() async {
@@ -126,6 +130,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       if (response.statusCode == 201) {
         _commentController.clear();
         _fetchComments();
+        context.read<NewsProvider>().incrementCommentCountLocally(widget.postId);
+        context.read<HomeProvider>().incrementCommentCountLocally(widget.postId);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

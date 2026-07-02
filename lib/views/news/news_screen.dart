@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
@@ -720,15 +721,17 @@ class _NewsScreenState extends State<NewsScreen> {
                 // Save Button
                 TextButton.icon(
                   onPressed: () {
+                    context.read<NewsProvider>().toggleSavePost(post);
+                    final isSaved = context.read<NewsProvider>().isPostSaved(post.id);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('पोस्ट सेव की गई।'),
-                        duration: Duration(seconds: 1),
+                      SnackBar(
+                        content: Text(isSaved ? 'पोस्ट सेव की गई।' : 'पोस्ट हटा दी गई।'),
+                        duration: const Duration(seconds: 1),
                       ),
                     );
                   },
-                  icon: const Icon(
-                    Icons.bookmark_border,
+                  icon: Icon(
+                    context.watch<NewsProvider>().isPostSaved(post.id) ? Icons.bookmark : Icons.bookmark_border,
                     color: ThemeConfig.textSecondary,
                     size: 18,
                   ),
@@ -837,14 +840,10 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   void _sharePost(int postId) {
-    final link = 'maruprajapat://posts/$postId';
-    Clipboard.setData(ClipboardData(text: link));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('शेयर लिंक कॉपी कर लिया गया है! इसे शेयर करें।'),
-        backgroundColor: ThemeConfig.success,
-      ),
-    );
+    final appUrl = 'https://play.google.com/store/apps/details?id=com.maruprajapat.app';
+    final postLink = 'maruprajapat://posts/$postId';
+    final textToShare = 'इस बेहतरीन पोस्ट को श्री मारू प्रजापत समाज ऐप पर देखें!\n\nपोस्ट लिंक: $postLink\nऐप डाउनलोड करें: $appUrl';
+    Share.share(textToShare);
   }
 
   void _showCommentsSheet(PostModel post) {
@@ -861,7 +860,7 @@ class _NewsScreenState extends State<NewsScreen> {
           ),
           child: CommentsSheetContent(
             post: post,
-            onCommentAdded: () => _onTabChanged(_showDrafts),
+            onCommentAdded: () { context.read<NewsProvider>().incrementCommentCountLocally(post.id); },
           ),
         );
       },
@@ -946,7 +945,7 @@ class _CommentsSheetContentState extends State<CommentsSheetContent> {
       if (response.statusCode == 201) {
         _commentController.clear();
         _fetchComments();
-        widget.onCommentAdded();
+        widget.onCommentAdded(); // Handled locally now
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

@@ -13,10 +13,12 @@ import '../../models/event_model.dart';
 
 class CreateEventScreen extends StatefulWidget {
   final int? communityId;
+  final EventModel? existingEvent;
 
   const CreateEventScreen({
     super.key,
     this.communityId,
+    this.existingEvent,
   });
 
   @override
@@ -66,6 +68,22 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     {'value': 'festival', 'label': 'उत्सव (Festival)'},
     {'value': 'general', 'label': 'सामान्य (General)'},
   ];
+
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existingEvent != null) {
+      final ev = widget.existingEvent!;
+      _titleController.text = ev.title;
+      _descController.text = ev.description?.replaceAll('<br>', '\n') ?? '';
+      _locController.text = ev.location ?? '';
+      _eventType = ev.eventType;
+      _selectedDate = ev.startDate;
+      _selectedTime = TimeOfDay.fromDateTime(ev.startDate);
+      // For cover image, we can't easily auto-fill a File, but we could handle the URL if we wanted to
+    }
+  }
 
   @override
   void dispose() {
@@ -212,9 +230,16 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         'community_id': widget.communityId,
       };
 
-      final response = await dio.post('/api/v1/events/', data: payload);
+      
+      Response response;
+      if (widget.existingEvent != null) {
+        response = await dio.put('/api/v1/events/${widget.existingEvent!.id}', data: payload);
+      } else {
+        response = await dio.post('/api/v1/events/', data: payload);
+      }
 
-      if (response.statusCode == 201 && mounted) {
+
+      if ((response.statusCode == 200 || response.statusCode == 201) && mounted) {
         _showPostPrompt(
           title: _titleController.text.trim(),
           dateStr: DateFormat('dd MMMM yyyy').format(combinedStart),
@@ -313,9 +338,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     return Scaffold(
       backgroundColor: ThemeConfig.background,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           widget.existingEvent != null ? 'कार्यक्रम अपडेट करें' : 'नया कार्यक्रम जोड़ें',
-          style: TextStyle(color: ThemeConfig.textPrimary, fontWeight: FontWeight.bold),
+          style: const TextStyle(color: ThemeConfig.textPrimary, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,

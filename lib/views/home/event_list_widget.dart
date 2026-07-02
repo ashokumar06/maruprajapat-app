@@ -104,7 +104,7 @@ class _EventListWidgetState extends State<EventListWidget> with SingleTickerProv
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     
-    return _allEvents.where((e) {
+    List<EventModel> filtered = _allEvents.where((e) {
       final eventDate = DateTime(e.startDate.year, e.startDate.month, e.startDate.day);
       
       final bool isPast = eventDate.isBefore(today);
@@ -113,6 +113,16 @@ class _EventListWidgetState extends State<EventListWidget> with SingleTickerProv
       if (tabIndex == 0) return isUpcoming;
       return isPast;
     }).toList();
+
+    if (tabIndex == 0) {
+      // Upcoming: Nearest dates first (Ascending)
+      filtered.sort((a, b) => a.startDate.compareTo(b.startDate));
+    } else {
+      // Past: Most recent past dates first (Descending)
+      filtered.sort((a, b) => b.startDate.compareTo(a.startDate));
+    }
+
+    return filtered;
   }
 
   List<EventModel> _getFilteredEvents(List<EventModel> events) {
@@ -441,7 +451,7 @@ class _EventListWidgetState extends State<EventListWidget> with SingleTickerProv
           if (widget.canCreate)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 border: Border(top: BorderSide(color: ThemeConfig.divider)),
@@ -528,7 +538,7 @@ class _EventListWidgetState extends State<EventListWidget> with SingleTickerProv
     return RefreshIndicator(
       onRefresh: _fetchEvents,
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: events.length,
         itemBuilder: (context, index) {
           final event = events[index];
@@ -553,17 +563,8 @@ class _EventListWidgetState extends State<EventListWidget> with SingleTickerProv
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: ThemeConfig.divider, width: 1.0)),
       ),
       child: InkWell(
         onTap: () {
@@ -574,9 +575,8 @@ class _EventListWidgetState extends State<EventListWidget> with SingleTickerProv
             ),
           );
         },
-        borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(12.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

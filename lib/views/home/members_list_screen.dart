@@ -157,7 +157,7 @@ class _MembersListScreenState extends State<MembersListScreen> {
                 ? const Center(child: Text('कोई सदस्य नहीं मिला।', style: TextStyle(color: ThemeConfig.textSecondary)))
                 : ListView.builder(
                     controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     itemCount: _members.length + (_hasMore ? 1 : 0),
                     itemBuilder: (context, index) {
                       if (index == _members.length) {
@@ -168,16 +168,12 @@ class _MembersListScreenState extends State<MembersListScreen> {
                       }
 
                       final member = _members[index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        color: ThemeConfig.surface,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: const BorderSide(color: ThemeConfig.border),
+                      return Container(
+                        decoration: const BoxDecoration(
+                          border: Border(bottom: BorderSide(color: ThemeConfig.divider, width: 1.0)),
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.all(12.0),
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
                           child: Row(
                             children: [
                               // Avatar

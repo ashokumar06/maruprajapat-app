@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../config/theme_config.dart';
 import '../../models/event_model.dart';
 import 'package:dio/dio.dart';
-import '../../utils/api_client.dart';
+import '../../services/api_client.dart';
 import 'create_event_screen.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 
@@ -51,97 +52,10 @@ class EventDetailsScreen extends StatelessWidget {
   }
 
   void _showShareSheet(BuildContext context) {
-    final String link = 'maruprajapat://events/${event.id}';
-    
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'कार्यक्रम शेयर करें',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: ThemeConfig.textPrimary),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildShareOption(
-                    icon: Icons.chat,
-                    label: 'WhatsApp',
-                    color: Colors.green,
-                    onTap: () => Navigator.pop(context),
-                  ),
-                  _buildShareOption(
-                    icon: Icons.facebook,
-                    label: 'Facebook',
-                    color: Colors.blue.shade800,
-                    onTap: () => Navigator.pop(context),
-                  ),
-                  _buildShareOption(
-                    icon: Icons.send,
-                    label: 'Telegram',
-                    color: Colors.blue.shade500,
-                    onTap: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              const Divider(color: ThemeConfig.divider),
-              const SizedBox(height: 12),
-              
-              // Copy Link Row
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: ThemeConfig.background,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: ThemeConfig.border),
-                      ),
-                      child: Text(
-                        link,
-                        style: const TextStyle(fontSize: 13, color: ThemeConfig.textSecondary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: link));
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('लिंक कॉपी कर लिया गया है!'),
-                          backgroundColor: ThemeConfig.success,
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: ThemeConfig.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
-                    child: const Text('कॉपी करें', style: TextStyle(color: Colors.white)),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    final appUrl = 'https://play.google.com/store/apps/details?id=com.maruprajapat.app';
+    final eventLink = 'maruprajapat://events/${event.id}';
+    final textToShare = 'इस बेहतरीन कार्यक्रम को श्री मारू प्रजापत समाज ऐप पर देखें!\\n\\nकार्यक्रम लिंक: $eventLink\\nऐप डाउनलोड करें: $appUrl';
+    Share.share(textToShare);
   }
 
   Widget _buildShareOption({
@@ -185,8 +99,8 @@ class EventDetailsScreen extends StatelessWidget {
     if (confirm != true) return;
 
     try {
-      final dio = ApiClient.getDio();
-      await dio.delete('/events/${event.id}');
+      final dio = ApiClient().dio;
+      await dio.delete('/api/v1/events/${event.id}');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('इवेंट डिलीट कर दिया गया है')));
         Navigator.pop(context, true); // Pop with true to refresh list

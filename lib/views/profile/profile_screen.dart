@@ -12,6 +12,7 @@ import '../auth/login_screen.dart';
 import "edit_profile_screen.dart";
 import 'apply_membership_screen.dart';
 import 'my_applications_screen.dart';
+import 'saved_posts_screen.dart';
 import 'app_info_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -177,9 +178,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   }),
                   _buildMenuDivider(),
                   _buildMenuItem(Icons.bookmark_border, 'सेव की गई पोस्ट', () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('आपने अभी तक कोई पोस्ट सेव नहीं की है।')),
-                    );
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SavedPostsScreen()));
                   }),
                   _buildMenuDivider(),
                   _buildMenuItem(Icons.person_outline, 'मेरी जानकारी', () {

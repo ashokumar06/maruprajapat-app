@@ -177,11 +177,68 @@ class NewsProvider extends ChangeNotifier {
     return null;
   }
 
+  
+  List<PostModel> _savedPosts = [];
+  List<PostModel> get savedPosts => _savedPosts;
+
+  Future<void> loadSavedPosts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString('saved_posts_local');
+      if (jsonStr != null) {
+        final List decoded = json.decode(jsonStr);
+        _savedPosts = decoded.map((e) => PostModel.fromJson(e)).toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error loading saved posts: $e');
+    }
+  }
+
+  Future<void> toggleSavePost(PostModel post) async {
+    final index = _savedPosts.indexWhere((p) => p.id == post.id);
+    if (index == -1) {
+      _savedPosts.add(post);
+    } else {
+      _savedPosts.removeAt(index);
+    }
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = json.encode(_savedPosts.map((p) => p.toJson()).toList());
+      await prefs.setString('saved_posts_local', jsonStr);
+    } catch (e) {
+      print('Error saving post locally: $e');
+    }
+  }
+
+  bool isPostSaved(int postId) {
+    return _savedPosts.any((p) => p.id == postId);
+  }
+
+  void incrementCommentCountLocally(int postId) {
+    final index = _trendingPosts.indexWhere((p) => p.id == postId);
+    if (index != -1) {
+      // Create a new list reference so UI notices the change perfectly
+      // Wait, just mutating and notifying is fine
+      _trendingPosts[index] = PostModel.fromJson(_trendingPosts[index].toJson());
+      // Increment the count manually since it's final, wait, it's final in the model!
+      // In Dart, if it's final, we can't change it. Wait, I'll just change the JSON and parse it back!
+      var jsonMap = _trendingPosts[index].toJson();
+      jsonMap['comments_count'] = (jsonMap['comments_count'] ?? 0) + 1;
+      _trendingPosts[index] = PostModel.fromJson(jsonMap);
+      notifyListeners();
+    }
+  }
+
+  // Also fix toggleLikeLocally to ensure object changes to trigger rebuild
   void toggleLikeLocally(int postId, {required bool isLiked, required int likesCount}) async {
     final index = _trendingPosts.indexWhere((p) => p.id == postId);
     if (index != -1) {
-      _trendingPosts[index].isLiked = isLiked;
-      _trendingPosts[index].likesCount = likesCount;
+      var jsonMap = _trendingPosts[index].toJson();
+      jsonMap['is_liked'] = isLiked;
+      jsonMap['likes_count'] = likesCount;
+      _trendingPosts[index] = PostModel.fromJson(jsonMap);
       notifyListeners();
 
       try {
@@ -193,4 +250,5 @@ class NewsProvider extends ChangeNotifier {
       }
     }
   }
+
 }
