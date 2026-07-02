@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../config/theme_config.dart';
 import '../../models/event_model.dart';
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 
 class EventDetailsScreen extends StatelessWidget {
   final EventModel event;
@@ -173,161 +174,181 @@ class EventDetailsScreen extends StatelessWidget {
       backgroundColor: ThemeConfig.background,
       appBar: AppBar(
         title: const Text(
-          'कार्यक्रम विवरण (Details)',
-          style: TextStyle(color: ThemeConfig.textPrimary, fontWeight: FontWeight.bold),
+          'इवेंट विवरण',
+          style: TextStyle(color: ThemeConfig.textPrimary, fontWeight: FontWeight.bold, fontSize: 16),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: ThemeConfig.textPrimary),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          // Header Card
-          Container(
-            decoration: BoxDecoration(
-              color: ThemeConfig.surface,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: ThemeConfig.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Top Banner image or icon box
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                  child: Container(
-                    width: double.infinity,
-                    height: 180,
-                    color: ThemeConfig.primary.withOpacity(0.08),
-                    child: event.coverImageUrl != null && event.coverImageUrl!.isNotEmpty
-                        ? Image.network(event.coverImageUrl!, fit: BoxFit.cover)
-                        : Center(
-                            child: Icon(typeIcon, color: ThemeConfig.primary, size: 60),
-                          ),
-                  ),
-                ),
-                
-                // Title and Metadata Details
-                Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: ThemeConfig.primary.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          typeText,
-                          style: const TextStyle(
-                            color: ThemeConfig.primary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        event.title,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: ThemeConfig.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      const Divider(color: ThemeConfig.divider),
-                      const SizedBox(height: 16),
-                      
-                      // Date & Time row
-                      Row(
-                        children: [
-                          const Icon(Icons.calendar_today, color: ThemeConfig.primary, size: 20),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(dateStr, style: const TextStyle(fontWeight: FontWeight.bold, color: ThemeConfig.textPrimary)),
-                              const SizedBox(height: 4),
-                              Text('$timeStr से', style: const TextStyle(fontSize: 12, color: ThemeConfig.textSecondary)),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // Location row
-                      if (event.location != null && event.location!.isNotEmpty) ...[
-                        Row(
-                          children: [
-                            const Icon(Icons.location_on_outlined, color: ThemeConfig.primary, size: 20),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('कार्यक्रम स्थल', style: TextStyle(fontWeight: FontWeight.bold, color: ThemeConfig.textPrimary)),
-                                  const SizedBox(height: 4),
-                                  Text(event.location!, style: const TextStyle(fontSize: 12, color: ThemeConfig.textSecondary)),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share_outlined, color: ThemeConfig.textPrimary),
+            onPressed: () => _showShareSheet(context),
           ),
-          const SizedBox(height: 20),
+        ],
+      ),
+      body: Stack(
+        children: [
+          ListView(
+            padding: const EdgeInsets.fromLTRB(16.0, 10.0, 16.0, 90.0),
+            children: [
+              // Top cover image banner
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  width: double.infinity,
+                  height: 180,
+                  color: ThemeConfig.primary.withOpacity(0.08),
+                  child: event.coverImageUrl != null && event.coverImageUrl!.isNotEmpty
+                      ? Image.network(event.coverImageUrl!, fit: BoxFit.cover)
+                      : Center(
+                          child: Icon(typeIcon, color: ThemeConfig.primary, size: 54),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 16),
 
-          // Description Card
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: ThemeConfig.surface,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: ThemeConfig.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'कार्यक्रम का विवरण',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThemeConfig.textPrimary),
+              // Title and status badge
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      event.title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: ThemeConfig.textPrimary,
+                        height: 1.25,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      event.startDate.isAfter(DateTime.now()) ? 'आगामी' : 'बीता',
+                      style: TextStyle(
+                        color: event.startDate.isAfter(DateTime.now())
+                            ? Colors.green.shade700
+                            : ThemeConfig.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Info box details (Screen 2 style)
+              Row(
+                children: [
+                  const Icon(Icons.calendar_today_outlined, color: ThemeConfig.primary, size: 18),
+                  const SizedBox(width: 10),
+                  Text(
+                    '$dateStr | सुबह $timeStr से',
+                    style: const TextStyle(fontSize: 13, color: ThemeConfig.textSecondary, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (event.location != null && event.location!.isNotEmpty) ...[
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_outlined, color: ThemeConfig.primary, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        event.location!,
+                        style: const TextStyle(fontSize: 13, color: ThemeConfig.textSecondary, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  event.description ?? 'कोई विवरण प्रदान नहीं किया गया है।',
-                  style: const TextStyle(fontSize: 14, color: ThemeConfig.textSecondary, height: 1.5),
-                ),
               ],
+              Row(
+                children: [
+                  const Icon(Icons.business_center_outlined, color: ThemeConfig.primary, size: 18),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'आयोजक: मारू प्रजापत समाज समिति',
+                    style: TextStyle(fontSize: 13, color: ThemeConfig.textSecondary, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(color: ThemeConfig.divider),
+              const SizedBox(height: 16),
+
+              // Description section
+              const Text(
+                'कार्यक्रम का विवरण',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThemeConfig.textPrimary),
+              ),
+              const SizedBox(height: 8),
+              HtmlWidget(
+                event.description ?? 'कोई विवरण प्रदान नहीं किया गया है।',
+                textStyle: const TextStyle(fontSize: 13, color: ThemeConfig.textSecondary, height: 1.45),
+              ),
+              const SizedBox(height: 20),
+
+              // Mocked Event features checklist matching Screen 2 features checklist
+              const Text(
+                'कार्यक्रम की विशेषताएं',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThemeConfig.textPrimary),
+              ),
+              const SizedBox(height: 12),
+              _buildFeatureItem('सदस्य सम्मान'),
+              _buildFeatureItem('सांस्कृतिक कार्यक्रम'),
+              _buildFeatureItem('भोजन प्रसादी'),
+              _buildFeatureItem('लकी ड्रा'),
+            ],
+          ),
+
+          // Bottom full-width outlined share button (No Register button, as requested)
+          Positioned(
+            bottom: 16,
+            left: 16,
+            right: 16,
+            child: SizedBox(
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: () => _showShareSheet(context),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: ThemeConfig.primary, width: 1.5),
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 0,
+                ),
+                icon: const Icon(Icons.share, color: ThemeConfig.primary, size: 20),
+                label: const Text(
+                  'शेयर करें',
+                  style: TextStyle(color: ThemeConfig.primary, fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 30),
+        ],
+      ),
+    );
+  }
 
-          // Bottom Action Button: Share Only
-          SizedBox(
-            height: 50,
-            child: ElevatedButton.icon(
-              onPressed: () => _showShareSheet(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: ThemeConfig.primary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                elevation: 0,
-              ),
-              icon: const Icon(Icons.share, color: Colors.white, size: 20),
-              label: const Text(
-                'कार्यक्रम शेयर करें',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            ),
+  Widget _buildFeatureItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle, color: ThemeConfig.primary, size: 18),
+          const SizedBox(width: 10),
+          Text(
+            text,
+            style: const TextStyle(fontSize: 13, color: ThemeConfig.textPrimary, fontWeight: FontWeight.w500),
           ),
         ],
       ),
