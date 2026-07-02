@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
-import '../services/api_client.dart';
+import re
 
-class BhamashahModel {
+file_path = 'lib/providers/honours_provider.dart'
+
+new_models = """class BhamashahModel {
   final int id;
   final String name;
   final String? fatherHusbandName;
@@ -109,9 +110,17 @@ class PratibhaModel {
     );
   }
 }
+"""
 
-class HonoursProvider with ChangeNotifier {
-  List<BhamashahModel> _bhamashahs = [];
+with open(file_path, 'r') as f:
+    content = f.read()
+
+# Replace existing models
+pattern = r"class BhamashahModel.*?class HonoursProvider with ChangeNotifier \{"
+content = re.sub(pattern, new_models + "\nclass HonoursProvider with ChangeNotifier {", content, flags=re.DOTALL)
+
+# Add admin dashboard fetching and category parameter
+provider_replacement = """  List<BhamashahModel> _bhamashahs = [];
   List<PratibhaModel> _pratibhas = [];
   Map<String, dynamic>? _adminDashboard;
   bool _isLoading = false;
@@ -168,39 +177,11 @@ class HonoursProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('Error fetching admin dashboard: $e');
     }
-  }
+  }"""
 
-  Future<bool> applyBhamashah(Map<String, dynamic> data) async {
-    try {
-      final client = ApiClient().dio;
-      final res = await client.post(
-        '/api/v1/honours/bhamashah',
-        data: data,
-      );
-      if (res.statusCode == 201) {
-        await fetchHonours();
-        return true;
-      }
-    } catch (e) {
-      debugPrint('Error applying bhamashah: $e');
-    }
-    return false;
-  }
+pattern2 = r"  List<BhamashahModel> _bhamashahs = \[\];.*?Future<void> fetchHonours\(\) async \{.*?\}.*?notifyListeners\(\);\n    \}\n  \}"
+content = re.sub(pattern2, provider_replacement, content, flags=re.DOTALL)
 
-  Future<bool> applyPratibha(Map<String, dynamic> data) async {
-    try {
-      final client = ApiClient().dio;
-      final res = await client.post(
-        '/api/v1/honours/pratibha',
-        data: data,
-      );
-      if (res.statusCode == 201) {
-        await fetchHonours();
-        return true;
-      }
-    } catch (e) {
-      debugPrint('Error applying pratibha: $e');
-    }
-    return false;
-  }
-}
+with open(file_path, 'w') as f:
+    f.write(content)
+

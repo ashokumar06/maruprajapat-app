@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 import '../../providers/news_provider.dart';
 import '../../services/api_client.dart';
@@ -1010,7 +1009,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 Text(
-                  '${post.commentsCount} टिप्पणियाँ  •  12 शेयर',
+                  '${post.commentsCount} टिप्पणियाँ  •   121 शेयर',
                   style: const TextStyle(
                     color: ThemeConfig.textSecondary,
                     fontSize: 12,
@@ -1070,17 +1069,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 TextButton.icon(
                   onPressed: () {
-                    context.read<NewsProvider>().toggleSavePost(post);
-                    final isSaved = context.read<NewsProvider>().isPostSaved(post.id);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(isSaved ? 'पोस्ट सेव की गई।' : 'पोस्ट हटा दी गई।'),
-                        duration: const Duration(seconds: 1),
+                      const SnackBar(
+                        content: Text('पोस्ट सेव की गई।'),
+                        duration: Duration(seconds: 1),
                       ),
                     );
                   },
-                  icon: Icon(
-                    context.watch<NewsProvider>().isPostSaved(post.id) ? Icons.bookmark : Icons.bookmark_border,
+                  icon: const Icon(
+                    Icons.bookmark_border,
                     color: ThemeConfig.textSecondary,
                     size: 18,
                   ),
@@ -1100,25 +1097,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _toggleLike(int postId) async {
-    final homeProvider = context.read<HomeProvider>();
     final newsProvider = context.read<NewsProvider>();
-    
-    final homeIndex = homeProvider.posts.indexWhere((p) => p.id == postId);
-    final newsIndex = newsProvider.trendingPosts.indexWhere((p) => p.id == postId);
-    
-    PostModel? post;
-    if (homeIndex != -1) post = homeProvider.posts[homeIndex];
-    if (post == null && newsIndex != -1) post = newsProvider.trendingPosts[newsIndex];
-    if (post == null) return;
+    final index = newsProvider.trendingPosts.indexWhere((p) => p.id == postId);
+    if (index == -1) return;
 
+    final post = newsProvider.trendingPosts[index];
     final originalIsLiked = post.isLiked;
     final originalLikesCount = post.likesCount;
 
     // Optimistically update locally
     final updatedIsLiked = !post.isLiked;
     final updatedLikesCount = post.likesCount + (updatedIsLiked ? 1 : -1);
-    
-    homeProvider.toggleLikeLocally(postId, isLiked: updatedIsLiked, likesCount: updatedLikesCount);
     newsProvider.toggleLikeLocally(postId, isLiked: updatedIsLiked, likesCount: updatedLikesCount);
 
     try {
@@ -1127,24 +1116,27 @@ class _HomeScreenState extends State<HomeScreen> {
       if (response.statusCode == 200 && response.data != null) {
         final newLikesCount = int.tryParse(response.data['likes_count'].toString()) ?? updatedLikesCount;
         final String action = response.data['action'] ?? '';
-        homeProvider.toggleLikeLocally(postId, isLiked: (action == 'liked'), likesCount: newLikesCount);
         newsProvider.toggleLikeLocally(postId, isLiked: (action == 'liked'), likesCount: newLikesCount);
       } else {
-        homeProvider.toggleLikeLocally(postId, isLiked: originalIsLiked, likesCount: originalLikesCount);
+        // Rollback
         newsProvider.toggleLikeLocally(postId, isLiked: originalIsLiked, likesCount: originalLikesCount);
       }
     } catch (e) {
       debugPrint('Error liking post: $e');
-      homeProvider.toggleLikeLocally(postId, isLiked: originalIsLiked, likesCount: originalLikesCount);
+      // Rollback
       newsProvider.toggleLikeLocally(postId, isLiked: originalIsLiked, likesCount: originalLikesCount);
     }
   }
 
   void _sharePost(int postId) {
-    final appUrl = 'https://play.google.com/store/apps/details?id=com.maruprajapat.app';
-    final postLink = 'maruprajapat://posts/$postId';
-    final textToShare = 'इस बेहतरीन पोस्ट को श्री मारू प्रजापत समाज ऐप पर देखें!\n\nपोस्ट लिंक: $postLink\nऐप डाउनलोड करें: $appUrl';
-    Share.share(textToShare);
+    final link = 'maruprajapat://posts/$postId';
+    Clipboard.setData(ClipboardData(text: link));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('शेयर लिंक कॉपी कर लिया गया है! इसे शेयर करें।'),
+        backgroundColor: ThemeConfig.success,
+      ),
+    );
   }
 
   void _showCommentsSheet(PostModel post) {
@@ -1161,10 +1153,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           child: CommentsSheetContent(
             post: post,
-            onCommentAdded: () {
-              context.read<NewsProvider>().incrementCommentCountLocally(post.id);
-              context.read<HomeProvider>().incrementCommentCountLocally(post.id);
-            },
+            onCommentAdded: () {},
           ),
         );
       },

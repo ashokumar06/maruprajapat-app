@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../config/theme_config.dart';
-
 import 'package:provider/provider.dart';
+import '../../config/theme_config.dart';
 import '../../providers/honours_provider.dart';
+import '../../providers/user_provider.dart';
+import 'apply_honour_screen.dart';
+import 'admin_honours_screen.dart';
 
 class HonoursScreen extends StatefulWidget {
   const HonoursScreen({super.key});
@@ -13,30 +15,54 @@ class HonoursScreen extends StatefulWidget {
 
 class _HonoursScreenState extends State<HonoursScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final TextEditingController _searchCtrl = TextEditingController();
+  
+  final List<String> _filters = ['सभी', 'शिक्षा', 'सेवा', 'सरकारी सेवा', 'प्रतियोगी परीक्षा', 'खेल', 'कला', 'व्यवसाय', 'अन्य'];
+  String _selectedFilter = 'सभी';
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<HonoursProvider>().fetchHonours();
+      _fetchData();
     });
+  }
+  
+  void _fetchData() {
+    context.read<HonoursProvider>().fetchHonours(
+      category: _selectedFilter == 'सभी' ? null : _selectedFilter
+    );
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _searchCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = context.watch<UserProvider>();
+    final isAdmin = userProvider.isAdmin || userProvider.isSuperAdmin;
+    final isMember = userProvider.currentUser?.role == 'member';
+    
     return Scaffold(
       backgroundColor: ThemeConfig.background,
       appBar: AppBar(
-        title: const Text('समाज रत्न (गौरव)', style: TextStyle(color: ThemeConfig.textPrimary, fontWeight: FontWeight.bold)),
+        title: const Text('सम्मान रत्न (गौरव)', style: TextStyle(color: ThemeConfig.textPrimary, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          if (isAdmin)
+            IconButton(
+              icon: const Icon(Icons.admin_panel_settings, color: ThemeConfig.primary),
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminHonoursScreen()));
+              },
+            ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: ThemeConfig.primary,
@@ -48,53 +74,176 @@ class _HonoursScreenState extends State<HonoursScreen> with SingleTickerProvider
           ],
         ),
       ),
-      body: Consumer<HonoursProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _buildBhamashahTab(provider.bhamashahs),
-              _buildPratibhaTab(provider.pratibhas),
-            ],
-          );
-        },
+      body: Column(
+        children: [
+          // Search and Filter Area
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: ThemeConfig.background,
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: TextField(
+                          controller: _searchCtrl,
+                          decoration: const InputDecoration(
+                            hintText: 'खोजें...',
+                            hintStyle: TextStyle(color: ThemeConfig.textHint),
+                            border: InputBorder.none,
+                            icon: Icon(Icons.search, color: ThemeConfig.textHint),
+                          ),
+                          onChanged: (val) => setState(() {}),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: ThemeConfig.primary.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.filter_list, color: ThemeConfig.primary, size: 20),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 36,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _filters.length,
+                    itemBuilder: (context, index) {
+                      final filter = _filters[index];
+                      final isSelected = _selectedFilter == filter;
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selectedFilter = filter;
+                          });
+                          _fetchData();
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected ? ThemeConfig.primary : ThemeConfig.background,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: isSelected ? ThemeConfig.primary : ThemeConfig.border),
+                          ),
+                          child: Text(
+                            filter,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : ThemeConfig.textPrimary,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          
+          Expanded(
+            child: Consumer<HonoursProvider>(
+              builder: (context, provider, child) {
+                if (provider.isLoading) {
+                  return const Center(child: CircularProgressIndicator(color: ThemeConfig.primary));
+                }
+                return TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildBhamashahTab(provider.bhamashahs),
+                    _buildPratibhaTab(provider.pratibhas),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          // Open Apply Form
-          _showApplyModal(context);
+          final isBhamashahTab = _tabController.index == 0;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ApplyHonourScreen(
+                isAdminOrMember: (isAdmin || isMember),
+                isBhamashah: isBhamashahTab,
+              ),
+            ),
+          ).then((value) {
+            if (value == true) _fetchData();
+          });
         },
         backgroundColor: ThemeConfig.primary,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('आवेदन करें', style: TextStyle(color: Colors.white)),
+        icon: const Icon(Icons.military_tech, color: Colors.white),
+        label: const Text('सम्मान हेतु आवेदन करें', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
     );
   }
 
   Widget _buildBhamashahTab(List<BhamashahModel> list) {
-    if (list.isEmpty) return const Center(child: Text('कोई भामाशाह नहीं मिला।'));
+    // Basic search filter
+    final query = _searchCtrl.text.toLowerCase();
+    final filtered = list.where((i) => i.name.toLowerCase().contains(query)).toList();
+
+    if (filtered.isEmpty) return const Center(child: Text('कोई भामाशाह नहीं मिला।', style: TextStyle(color: ThemeConfig.textSecondary)));
+    
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: list.length,
+      padding: const EdgeInsets.all(16).copyWith(bottom: 80),
+      itemCount: filtered.length,
       itemBuilder: (context, index) {
-        final item = list[index];
+        final item = filtered[index];
         return Card(
+          elevation: 0,
           margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundImage: item.photoUrl != null ? NetworkImage(item.photoUrl!) : null,
-              child: item.photoUrl == null ? const Icon(Icons.person) : null,
-            ),
-            title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Column(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: ThemeConfig.border),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (item.donationAmount != null) Text('योगदान: ₹${item.donationAmount}', style: const TextStyle(color: Colors.green)),
-                if (item.details != null) Text(item.details!, maxLines: 2, overflow: TextOverflow.ellipsis),
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: ThemeConfig.background,
+                  backgroundImage: item.photoUrl != null && item.photoUrl!.isNotEmpty ? NetworkImage(item.photoUrl!) : null,
+                  child: item.photoUrl == null || item.photoUrl!.isEmpty ? const Icon(Icons.person, color: ThemeConfig.textSecondary, size: 28) : null,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(height: 4),
+                      if (item.district != null && item.district!.isNotEmpty)
+                        Text(item.district!, style: const TextStyle(color: ThemeConfig.textSecondary, fontSize: 12)),
+                      if (item.donationAmount != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text('योगदान: ₹${item.donationAmount}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                        ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: ThemeConfig.textHint),
               ],
             ),
           ),
@@ -104,154 +253,65 @@ class _HonoursScreenState extends State<HonoursScreen> with SingleTickerProvider
   }
 
   Widget _buildPratibhaTab(List<PratibhaModel> list) {
-    if (list.isEmpty) return const Center(child: Text('कोई प्रतिभा नहीं मिली।'));
+    final query = _searchCtrl.text.toLowerCase();
+    final filtered = list.where((i) => i.name.toLowerCase().contains(query)).toList();
+
+    if (filtered.isEmpty) return const Center(child: Text('कोई प्रतिभा नहीं मिली।', style: TextStyle(color: ThemeConfig.textSecondary)));
+    
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: list.length,
+      padding: const EdgeInsets.all(16).copyWith(bottom: 80),
+      itemCount: filtered.length,
       itemBuilder: (context, index) {
-        final item = list[index];
+        final item = filtered[index];
         return Card(
+          elevation: 0,
           margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundImage: item.photoUrl != null ? NetworkImage(item.photoUrl!) : null,
-              child: item.photoUrl == null ? const Icon(Icons.star, color: Colors.orange) : null,
-            ),
-            title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Column(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: ThemeConfig.border),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.achievement, style: const TextStyle(color: ThemeConfig.primary, fontWeight: FontWeight.w600)),
-                if (item.details != null) Text(item.details!, maxLines: 2, overflow: TextOverflow.ellipsis),
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: ThemeConfig.background,
+                  backgroundImage: item.photoUrl != null && item.photoUrl!.isNotEmpty ? NetworkImage(item.photoUrl!) : null,
+                  child: item.photoUrl == null || item.photoUrl!.isEmpty ? const Icon(Icons.military_tech, color: ThemeConfig.primary, size: 28) : null,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(child: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(4)),
+                            child: Text(item.category, style: TextStyle(color: Colors.orange.shade800, fontSize: 10, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(item.achievement, style: const TextStyle(color: ThemeConfig.primary, fontSize: 13, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      if (item.year != null && item.year!.isNotEmpty)
+                        Text('वर्ष: ${item.year}', style: const TextStyle(color: ThemeConfig.textSecondary, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right, color: ThemeConfig.textHint),
               ],
             ),
           ),
         );
       },
-    );
-  }
-
-  void _showApplyModal(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          child: const ApplyHonourForm(),
-        );
-      },
-    );
-  }
-}
-
-class ApplyHonourForm extends StatefulWidget {
-  const ApplyHonourForm({super.key});
-  @override
-  State<ApplyHonourForm> createState() => _ApplyHonourFormState();
-}
-
-class _ApplyHonourFormState extends State<ApplyHonourForm> {
-  final _formKey = GlobalKey<FormState>();
-  String _type = 'Bhamashah';
-  final _nameCtrl = TextEditingController();
-  final _achievementCtrl = TextEditingController();
-  final _amountCtrl = TextEditingController();
-  final _detailsCtrl = TextEditingController();
-
-  void _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    final provider = context.read<HonoursProvider>();
-    bool success = false;
-    
-    if (_type == 'Bhamashah') {
-      success = await provider.applyBhamashah({
-        'name': _nameCtrl.text,
-        'details': _detailsCtrl.text,
-        'donation_amount': double.tryParse(_amountCtrl.text) ?? 0,
-      });
-    } else {
-      success = await provider.applyPratibha({
-        'name': _nameCtrl.text,
-        'achievement': _achievementCtrl.text,
-        'details': _detailsCtrl.text,
-      });
-    }
-    
-    if (success && mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('आवेदन सफलतापूर्वक जमा कर दिया गया है।')),
-      );
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('आवेदन विफल रहा। पुनः प्रयास करें।')),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('नया आवेदन', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: _type,
-              items: const [
-                DropdownMenuItem(value: 'Bhamashah', child: Text('भामाशाह')),
-                DropdownMenuItem(value: 'Pratibha', child: Text('प्रतिभा')),
-              ],
-              onChanged: (v) => setState(() => _type = v!),
-              decoration: const InputDecoration(labelText: 'श्रेणी'),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _nameCtrl,
-              decoration: const InputDecoration(labelText: 'पूरा नाम'),
-              validator: (v) => v!.isEmpty ? 'नाम आवश्यक है' : null,
-            ),
-            if (_type == 'Bhamashah') ...[
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _amountCtrl,
-                decoration: const InputDecoration(labelText: 'योगदान राशि (₹)'),
-                keyboardType: TextInputType.number,
-              ),
-            ] else ...[
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _achievementCtrl,
-                decoration: const InputDecoration(labelText: 'उपलब्धि (Achievement)'),
-                validator: (v) => v!.isEmpty ? 'उपलब्धि आवश्यक है' : null,
-              ),
-            ],
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _detailsCtrl,
-              decoration: const InputDecoration(labelText: 'अन्य विवरण'),
-              maxLines: 3,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _submit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: ThemeConfig.primary,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              child: const Text('जमा करें', style: TextStyle(color: Colors.white, fontSize: 16)),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
