@@ -8,6 +8,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 import 'package:dio/dio.dart';
+import '../../models/event_model.dart';
 
 
 class CreateEventScreen extends StatefulWidget {
@@ -313,7 +314,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       backgroundColor: ThemeConfig.background,
       appBar: AppBar(
         title: const Text(
-          'नया कार्यक्रम जोड़ें',
+          widget.existingEvent != null ? 'कार्यक्रम अपडेट करें' : 'नया कार्यक्रम जोड़ें',
           style: TextStyle(color: ThemeConfig.textPrimary, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,

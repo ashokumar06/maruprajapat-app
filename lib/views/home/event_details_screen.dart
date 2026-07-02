@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../config/theme_config.dart';
 import '../../models/event_model.dart';
+import 'package:dio/dio.dart';
+import '../../utils/api_client.dart';
+import 'create_event_screen.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 
 class EventDetailsScreen extends StatelessWidget {
@@ -163,6 +166,38 @@ class EventDetailsScreen extends StatelessWidget {
     );
   }
 
+  void _deleteEvent(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('इवेंट डिलीट करें'),
+        content: const Text('क्या आप वाकई इस इवेंट को पूरी तरह से डिलीट करना चाहते हैं? यह वापस नहीं आएगा और इसकी इमेज भी डिलीट हो जाएगी।'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('रद्द करें')),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('डिलीट करें', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final dio = ApiClient.getDio();
+      await dio.delete('/events/${event.id}');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('इवेंट डिलीट कर दिया गया है')));
+        Navigator.pop(context, true); // Pop with true to refresh list
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('डिलीट करने में त्रुटि: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final typeText = _getEventTypeText(event.eventType);
@@ -184,6 +219,22 @@ class EventDetailsScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.share_outlined, color: ThemeConfig.textPrimary),
             onPressed: () => _showShareSheet(context),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: ThemeConfig.textPrimary),
+            onSelected: (val) {
+              if (val == 'edit') {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => CreateEventScreen(existingEvent: event))).then((val) {
+                  if (val == true) Navigator.pop(context, true);
+                });
+              } else if (val == 'delete') {
+                _deleteEvent(context);
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'edit', child: Text('एडिट करें')),
+              const PopupMenuItem(value: 'delete', child: Text('डिलीट करें', style: TextStyle(color: Colors.red))),
+            ],
           ),
         ],
       ),
@@ -296,18 +347,7 @@ class EventDetailsScreen extends StatelessWidget {
                 event.description ?? 'कोई विवरण प्रदान नहीं किया गया है।',
                 textStyle: const TextStyle(fontSize: 13, color: ThemeConfig.textSecondary, height: 1.45),
               ),
-              const SizedBox(height: 20),
 
-              // Mocked Event features checklist matching Screen 2 features checklist
-              const Text(
-                'कार्यक्रम की विशेषताएं',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThemeConfig.textPrimary),
-              ),
-              const SizedBox(height: 12),
-              _buildFeatureItem('सदस्य सम्मान'),
-              _buildFeatureItem('सांस्कृतिक कार्यक्रम'),
-              _buildFeatureItem('भोजन प्रसादी'),
-              _buildFeatureItem('लकी ड्रा'),
             ],
           ),
 
