@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme_config.dart';
 import '../../providers/honours_provider.dart';
-import '../../providers/user_provider.dart';
+import '../../providers/auth_provider.dart';
 import 'apply_honour_screen.dart';
 import 'admin_honours_screen.dart';
 
@@ -44,9 +44,10 @@ class _HonoursScreenState extends State<HonoursScreen> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
-    final userProvider = context.watch<UserProvider>();
-    final isAdmin = userProvider.isAdmin || userProvider.isSuperAdmin;
-    final isMember = userProvider.currentUser?.role == 'member';
+    final authProvider = context.watch<AuthProvider>();
+    final user = authProvider.currentUserModel;
+    final isAdmin = user?.role == 'admin' || user?.role == 'superadmin';
+    final isMember = user?.role == 'member';
     
     return Scaffold(
       backgroundColor: ThemeConfig.background,
