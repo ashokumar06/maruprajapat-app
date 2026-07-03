@@ -27,7 +27,8 @@ import 'all_people_screen.dart';
 import '../main/notifications_tab.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final VoidCallback? onNavigateToNews;
+  const HomeScreen({super.key, this.onNavigateToNews});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -421,6 +422,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: _buildSectionHeader(
                       isEnglish ? 'Community Updates' : 'समाज अपडेट',
                       isEnglish ? 'View All Posts >' : 'सभी पोस्ट देखें >',
+                      onTapAction: widget.onNavigateToNews,
                     ),
                   ),
                   SliverList(
@@ -1097,18 +1099,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _toggleLike(int postId) async {
-    final newsProvider = context.read<NewsProvider>();
-    final index = newsProvider.trendingPosts.indexWhere((p) => p.id == postId);
+    final homeProvider = context.read<HomeProvider>();
+    final index = homeProvider.posts.indexWhere((p) => p.id == postId);
     if (index == -1) return;
 
-    final post = newsProvider.trendingPosts[index];
+    final post = homeProvider.posts[index];
     final originalIsLiked = post.isLiked;
     final originalLikesCount = post.likesCount;
 
     // Optimistically update locally
     final updatedIsLiked = !post.isLiked;
     final updatedLikesCount = post.likesCount + (updatedIsLiked ? 1 : -1);
-    newsProvider.toggleLikeLocally(postId, isLiked: updatedIsLiked, likesCount: updatedLikesCount);
+    homeProvider.toggleLikeLocally(postId, isLiked: updatedIsLiked, likesCount: updatedLikesCount);
 
     try {
       final dio = ApiClient().dio;
@@ -1116,15 +1118,15 @@ class _HomeScreenState extends State<HomeScreen> {
       if (response.statusCode == 200 && response.data != null) {
         final newLikesCount = int.tryParse(response.data['likes_count'].toString()) ?? updatedLikesCount;
         final String action = response.data['action'] ?? '';
-        newsProvider.toggleLikeLocally(postId, isLiked: (action == 'liked'), likesCount: newLikesCount);
+        homeProvider.toggleLikeLocally(postId, isLiked: (action == 'liked'), likesCount: newLikesCount);
       } else {
         // Rollback
-        newsProvider.toggleLikeLocally(postId, isLiked: originalIsLiked, likesCount: originalLikesCount);
+        homeProvider.toggleLikeLocally(postId, isLiked: originalIsLiked, likesCount: originalLikesCount);
       }
     } catch (e) {
       debugPrint('Error liking post: $e');
       // Rollback
-      newsProvider.toggleLikeLocally(postId, isLiked: originalIsLiked, likesCount: originalLikesCount);
+      homeProvider.toggleLikeLocally(postId, isLiked: originalIsLiked, likesCount: originalLikesCount);
     }
   }
 

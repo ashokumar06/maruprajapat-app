@@ -28,8 +28,8 @@ class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
   bool _showNavBar = true;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
+  List<Widget> get _screens => [
+    HomeScreen(onNavigateToNews: () => setState(() => _currentIndex = 2)),
     const FormsScreen(),
     const NewsScreen(),
     const HonoursScreen(),

@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:dio/dio.dart';
 import '../../config/theme_config.dart';
 import 'package:provider/provider.dart';
 import '../../providers/honours_provider.dart';
+import '../../providers/news_provider.dart';
+import '../../services/api_client.dart';
+
 
 class ApplyHonourScreen extends StatefulWidget {
   final bool isAdminOrMember;
   final bool isBhamashah;
+  final BhamashahModel? editBhamashah;
+  final PratibhaModel? editPratibha;
   
   const ApplyHonourScreen({
     super.key, 
     this.isAdminOrMember = false,
     this.isBhamashah = false,
+    this.editBhamashah,
+    this.editPratibha,
   });
 
   @override
@@ -19,7 +28,14 @@ class ApplyHonourScreen extends StatefulWidget {
 
 class _ApplyHonourScreenState extends State<ApplyHonourScreen> {
   int _currentStep = 0;
-  final _formKey = GlobalKey<FormState>();
+  final _formKey0 = GlobalKey<FormState>();
+  final _formKey1 = GlobalKey<FormState>();
+  
+  String? _photoUrl;
+  bool _isUploading = false;
+  
+  bool get _isEditMode => widget.editBhamashah != null || widget.editPratibha != null;
+
 
   // Category (Only for Pratibha)
   String _selectedCategory = 'Anya';
@@ -56,14 +72,84 @@ class _ApplyHonourScreenState extends State<ApplyHonourScreen> {
   // Donation fields (Bhamashah)
   final _donationAmountCtrl = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.editBhamashah != null) {
+      _nameCtrl.text = widget.editBhamashah!.name;
+      _fatherNameCtrl.text = widget.editBhamashah!.fatherHusbandName ?? '';
+      _dobCtrl.text = widget.editBhamashah!.dob ?? '';
+      _addressCtrl.text = widget.editBhamashah!.address ?? '';
+      _districtCtrl.text = widget.editBhamashah!.district ?? '';
+      _mobileCtrl.text = widget.editBhamashah!.mobileNumber ?? '';
+      _emailCtrl.text = widget.editBhamashah!.email ?? '';
+      _donationAmountCtrl.text = widget.editBhamashah!.donationAmount?.toString() ?? '';
+      _detailsCtrl.text = widget.editBhamashah!.details ?? '';
+      _photoUrl = widget.editBhamashah!.photoUrl;
+    } else if (widget.editPratibha != null) {
+      _nameCtrl.text = widget.editPratibha!.name;
+      _fatherNameCtrl.text = widget.editPratibha!.fatherHusbandName ?? '';
+      _dobCtrl.text = widget.editPratibha!.dob ?? '';
+      _addressCtrl.text = widget.editPratibha!.address ?? '';
+      _districtCtrl.text = widget.editPratibha!.district ?? '';
+      _mobileCtrl.text = widget.editPratibha!.mobileNumber ?? '';
+      _emailCtrl.text = widget.editPratibha!.email ?? '';
+      _selectedCategory = widget.editPratibha!.category;
+      _achievementCtrl.text = widget.editPratibha!.achievement;
+      _yearCtrl.text = widget.editPratibha!.year ?? '';
+      _instituteCtrl.text = widget.editPratibha!.instituteDept ?? '';
+      _rankCtrl.text = widget.editPratibha!.rankPlace ?? '';
+      _locationCtrl.text = widget.editPratibha!.location ?? '';
+      _detailsCtrl.text = widget.editPratibha!.details ?? '';
+      _photoUrl = widget.editPratibha!.photoUrl;
+    }
+  }
+
+
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    
+    if (pickedFile != null) {
+      setState(() => _isUploading = true);
+      try {
+        final formData = FormData.fromMap({
+          'file': await MultipartFile.fromFile(pickedFile.path),
+          'folder': 'honours',
+        });
+        
+        final client = ApiClient().dio;
+        final res = await client.post('/api/v1/upload/image', data: formData);
+        
+        if (res.statusCode == 200 && res.data['success'] == true) {
+          setState(() {
+            _photoUrl = res.data['url'];
+          });
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('फोटो अपलोड हो गया!')));
+        }
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('फोटो अपलोड विफल रहा')));
+      } finally {
+        setState(() => _isUploading = false);
+      }
+    }
+  }
+
   void _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+
+    // Validation is done per step.
+    if (_photoUrl == null) {
+       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('कृपया फोटो अपलोड करें')));
+       return;
+    }
     
     final provider = context.read<HonoursProvider>();
     bool success = false;
     
     if (widget.isBhamashah) {
-      success = await provider.applyBhamashah({
+      if (_isEditMode) {
+        success = await provider.updateBhamashah(widget.editBhamashah!.id, {
         'name': _nameCtrl.text,
         'father_husband_name': _fatherNameCtrl.text,
         'dob': _dobCtrl.text,
@@ -71,38 +157,103 @@ class _ApplyHonourScreenState extends State<ApplyHonourScreen> {
         'district': _districtCtrl.text,
         'mobile_number': _mobileCtrl.text,
         'email': _emailCtrl.text,
+        'photo_url': _photoUrl,
         'donation_amount': double.tryParse(_donationAmountCtrl.text),
         'details': _detailsCtrl.text,
       });
+      } else {
+        success = await provider.applyBhamashah({
+          'name': _nameCtrl.text,
+          'father_husband_name': _fatherNameCtrl.text,
+          'dob': _dobCtrl.text,
+          'address': _addressCtrl.text,
+          'district': _districtCtrl.text,
+          'mobile_number': _mobileCtrl.text,
+          'email': _emailCtrl.text,
+          'photo_url': _photoUrl,
+          'donation_amount': double.tryParse(_donationAmountCtrl.text),
+          'details': _detailsCtrl.text,
+        });
+      }
     } else {
-      success = await provider.applyPratibha({
-        'name': _nameCtrl.text,
-        'father_husband_name': _fatherNameCtrl.text,
-        'dob': _dobCtrl.text,
-        'address': _addressCtrl.text,
-        'district': _districtCtrl.text,
-        'mobile_number': _mobileCtrl.text,
-        'email': _emailCtrl.text,
-        'category': _selectedCategory,
-        'achievement': _achievementCtrl.text,
-        'year': _yearCtrl.text,
-        'institute_dept': _instituteCtrl.text,
-        'rank_place': _rankCtrl.text,
-        'location': _locationCtrl.text,
-        'details': _detailsCtrl.text,
-      });
+      if (_isEditMode) {
+        success = await provider.updatePratibha(widget.editPratibha!.id, {
+          'name': _nameCtrl.text,
+          'father_husband_name': _fatherNameCtrl.text,
+          'dob': _dobCtrl.text,
+          'address': _addressCtrl.text,
+          'district': _districtCtrl.text,
+          'mobile_number': _mobileCtrl.text,
+          'email': _emailCtrl.text,
+          'photo_url': _photoUrl,
+          'category': _selectedCategory,
+          'achievement': _achievementCtrl.text,
+          'year': _yearCtrl.text,
+          'institute_dept': _instituteCtrl.text,
+          'rank_place': _rankCtrl.text,
+          'location': _locationCtrl.text,
+          'details': _detailsCtrl.text,
+        });
+      } else {
+        success = await provider.applyPratibha({
+          'name': _nameCtrl.text,
+          'father_husband_name': _fatherNameCtrl.text,
+          'dob': _dobCtrl.text,
+          'address': _addressCtrl.text,
+          'district': _districtCtrl.text,
+          'mobile_number': _mobileCtrl.text,
+          'email': _emailCtrl.text,
+          'photo_url': _photoUrl,
+          'category': _selectedCategory,
+          'achievement': _achievementCtrl.text,
+          'year': _yearCtrl.text,
+          'institute_dept': _instituteCtrl.text,
+          'rank_place': _rankCtrl.text,
+          'location': _locationCtrl.text,
+          'details': _detailsCtrl.text,
+        });
+      }
     }
 
     if (success && mounted) {
-      Navigator.pop(context, true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(widget.isAdminOrMember 
-            ? (widget.isBhamashah ? 'भामाशाह सफलतापूर्वक जोड़ दिया गया है।' : 'प्रतिभा सफलतापूर्वक जोड़ दी गई है।') 
-            : 'आवेदन सफलतापूर्वक जमा कर दिया गया है।'),
-          backgroundColor: ThemeConfig.success,
-        ),
-      );
+      if (widget.isAdminOrMember && !_isEditMode) {
+        final wantToPost = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('न्यूज़ फीड में पोस्ट करें?'),
+            content: const Text('क्या आप इसे न्यूज़ फीड में भी शेयर करना चाहते हैं?'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('नहीं')),
+              TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('हाँ, पोस्ट करें')),
+            ],
+          ),
+        );
+        if (wantToPost == true && mounted) {
+          final content = widget.isBhamashah 
+              ? 'समाज को गर्व है! नए भामाशाह श्री ${_nameCtrl.text} जी ने ₹${_donationAmountCtrl.text} का योगदान दिया है।\nविवरण: ${_detailsCtrl.text}'
+              : 'समाज को गर्व है! नई प्रतिभा ${_nameCtrl.text} ने ${_achievementCtrl.text} में सफलता प्राप्त की है।\nविवरण: ${_detailsCtrl.text}';
+          await context.read<NewsProvider>().createPost(
+            text: content,
+            mediaUrl: _photoUrl,
+            postType: _photoUrl != null ? 'image' : 'text',
+          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('पोस्ट शेयर कर दी गई है।')));
+          }
+        }
+      }
+
+      if (mounted) {
+        Navigator.pop(context, true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.isAdminOrMember 
+              ? (widget.isBhamashah ? 'भामाशाह सफलतापूर्वक जोड़ दिया गया है।' : 'प्रतिभा सफलतापूर्वक जोड़ दी गई है।') 
+              : 'आवेदन सफलतापूर्वक जमा कर दिया गया है।'),
+            backgroundColor: ThemeConfig.success,
+          ),
+        );
+      }
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('विफल रहा। पुनः प्रयास करें।'), backgroundColor: ThemeConfig.error),
@@ -114,9 +265,11 @@ class _ApplyHonourScreenState extends State<ApplyHonourScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isAdminOrMember 
-          ? (widget.isBhamashah ? 'नए भामाशाह जोड़ें' : 'नई प्रतिभा जोड़ें') 
-          : (widget.isBhamashah ? 'भामाशाह आवेदन' : 'प्रतिभा आवेदन')),
+        title: Text(_isEditMode 
+          ? (widget.isBhamashah ? 'भामाशाह अपडेट करें' : 'प्रतिभा अपडेट करें') 
+          : widget.isAdminOrMember 
+            ? (widget.isBhamashah ? 'नए भामाशाह जोड़ें' : 'नई प्रतिभा जोड़ें') 
+            : (widget.isBhamashah ? 'भामाशाह आवेदन' : 'प्रतिभा आवेदन')),
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: ThemeConfig.textPrimary),
@@ -127,12 +280,21 @@ class _ApplyHonourScreenState extends State<ApplyHonourScreen> {
         data: Theme.of(context).copyWith(
           colorScheme: const ColorScheme.light(primary: ThemeConfig.primary),
         ),
-        child: Form(
-          key: _formKey,
-          child: Stepper(
+        child: Stepper(
             type: StepperType.horizontal,
             currentStep: _currentStep,
             onStepContinue: () {
+              if (_currentStep == 0) {
+                if (!_formKey0.currentState!.validate()) return;
+              } else if (_currentStep == 1) {
+                if (!_formKey1.currentState!.validate()) return;
+              } else if (_currentStep == 2) {
+                if (_photoUrl == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('कृपया फोटो अपलोड करें')));
+                  return;
+                }
+              }
+              
               if (_currentStep < 3) {
                 setState(() => _currentStep += 1);
               } else {
@@ -170,7 +332,7 @@ class _ApplyHonourScreenState extends State<ApplyHonourScreen> {
                           backgroundColor: ThemeConfig.primary,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                        child: Text(_currentStep == 3 ? (widget.isAdminOrMember ? 'जोड़ें' : 'जमा करें') : 'आगे बढ़ें', style: const TextStyle(color: Colors.white)),
+                        child: Text(_currentStep == 3 ? (widget.isAdminOrMember ? 'प्रकाशित करें' : 'जमा करें') : 'आगे बढ़ें', style: const TextStyle(color: Colors.white)),
                       ),
                     ),
                   ],
@@ -197,19 +359,20 @@ class _ApplyHonourScreenState extends State<ApplyHonourScreen> {
                 state: _currentStep > 2 ? StepState.complete : StepState.indexed,
               ),
               Step(
-                title: const Text('समीक्षा', style: TextStyle(fontSize: 10)),
+                title: Text(widget.isAdminOrMember ? 'प्रकाशित' : 'समीक्षा', style: const TextStyle(fontSize: 10)),
                 content: _buildStep4Review(),
                 isActive: _currentStep >= 3,
               ),
             ],
           ),
         ),
-      ),
     );
   }
 
   Widget _buildStep1Info() {
-    return Column(
+    return Form(
+      key: _formKey0,
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (!widget.isBhamashah) ...[
@@ -262,17 +425,33 @@ class _ApplyHonourScreenState extends State<ApplyHonourScreen> {
         TextFormField(
           controller: _fatherNameCtrl,
           decoration: const InputDecoration(labelText: 'पिता / पति का नाम *', border: OutlineInputBorder()),
+          validator: (v) => v!.isEmpty ? 'यह जानकारी आवश्यक है' : null,
         ),
         const SizedBox(height: 16),
         TextFormField(
           controller: _dobCtrl,
-          decoration: const InputDecoration(labelText: 'जन्म तिथि * (DD/MM/YYYY)', border: OutlineInputBorder(), suffixIcon: Icon(Icons.calendar_today)),
+          readOnly: true,
+          onTap: () async {
+            final date = await showDatePicker(
+              context: context,
+              initialDate: DateTime.now(),
+              firstDate: DateTime(1900),
+              lastDate: DateTime.now(),
+            );
+            if (date != null) {
+              setState(() {
+                _dobCtrl.text = "${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}";
+              });
+            }
+          },
+          decoration: const InputDecoration(labelText: 'जन्म तिथि (DD/MM/YYYY)', border: OutlineInputBorder(), suffixIcon: Icon(Icons.calendar_today)),
         ),
         const SizedBox(height: 16),
         TextFormField(
           controller: _addressCtrl,
           decoration: const InputDecoration(labelText: 'पता *', border: OutlineInputBorder()),
           maxLines: 2,
+          validator: (v) => v!.isEmpty ? 'पता आवश्यक है' : null,
         ),
         const SizedBox(height: 16),
         Row(
@@ -281,13 +460,14 @@ class _ApplyHonourScreenState extends State<ApplyHonourScreen> {
               child: TextFormField(
                 controller: _districtCtrl,
                 decoration: const InputDecoration(labelText: 'ज़िला *', border: OutlineInputBorder()),
+                validator: (v) => v!.isEmpty ? 'ज़िला आवश्यक है' : null,
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: TextFormField(
                 controller: _mobileCtrl,
-                decoration: const InputDecoration(labelText: 'मोबाइल नंबर *', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'मोबाइल नंबर', border: OutlineInputBorder()),
                 keyboardType: TextInputType.phone,
               ),
             ),
@@ -300,11 +480,13 @@ class _ApplyHonourScreenState extends State<ApplyHonourScreen> {
           keyboardType: TextInputType.emailAddress,
         ),
       ],
-    );
+    ));
   }
 
   Widget _buildStep2Achievement() {
-    return Column(
+    return Form(
+      key: _formKey1,
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('उपलब्धि विवरण', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -317,8 +499,34 @@ class _ApplyHonourScreenState extends State<ApplyHonourScreen> {
         const SizedBox(height: 16),
         TextFormField(
           controller: _yearCtrl,
+          readOnly: true,
+          onTap: () {
+            showDialog(
+              context: context,
+              builder: (context) {
+                return AlertDialog(
+                  title: const Text('वर्ष चुनें'),
+                  content: SizedBox(
+                    width: 300,
+                    height: 300,
+                    child: YearPicker(
+                      firstDate: DateTime(1900),
+                      lastDate: DateTime.now(),
+                      selectedDate: DateTime.now(),
+                      onChanged: (DateTime date) {
+                        setState(() {
+                          _yearCtrl.text = date.year.toString();
+                        });
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ),
+                );
+              },
+            );
+          },
           decoration: const InputDecoration(labelText: 'वर्ष *', border: OutlineInputBorder(), suffixIcon: Icon(Icons.calendar_today)),
-          keyboardType: TextInputType.number,
+          validator: (v) => v!.isEmpty ? 'वर्ष आवश्यक है' : null,
         ),
         const SizedBox(height: 16),
         TextFormField(
@@ -342,11 +550,13 @@ class _ApplyHonourScreenState extends State<ApplyHonourScreen> {
           maxLines: 4,
         ),
       ],
-    );
+    ));
   }
   
   Widget _buildStep2Donation() {
-    return Column(
+    return Form(
+      key: _formKey1,
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('योगदान विवरण', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -365,7 +575,7 @@ class _ApplyHonourScreenState extends State<ApplyHonourScreen> {
           validator: (v) => v!.isEmpty ? 'विवरण आवश्यक है' : null,
         ),
       ],
-    );
+    ));
   }
 
   Widget _buildStep3Docs() {
@@ -374,10 +584,10 @@ class _ApplyHonourScreenState extends State<ApplyHonourScreen> {
       children: [
         const Text('दस्तावेज़ अपलोड करें', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: 16),
-        _buildUploadBox('पहचान प्रमाण पत्र *', 'आधार कार्ड / अन्य'),
-        _buildUploadBox(widget.isBhamashah ? 'योगदान प्रमाण *' : 'उपलब्धि प्रमाण पत्र *', widget.isBhamashah ? 'रसीद / अन्य प्रमाण' : 'सर्टिफिकेट / मार्कशीट'),
-        _buildUploadBox('फोटो *', 'पासपोर्ट साइज़ फोटो'),
-        _buildUploadBox('अन्य दस्तावेज़ (वैकल्पिक)', 'कोई भी अतिरिक्त दस्तावेज़'),
+        _buildUploadBox('फोटो *', 'पासपोर्ट साइज़ फोटो', isPhoto: true),
+        const SizedBox(height: 16),
+        if (_photoUrl != null) 
+           Center(child: ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(_photoUrl!, height: 120))),
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(12),
@@ -386,7 +596,7 @@ class _ApplyHonourScreenState extends State<ApplyHonourScreen> {
             children: [
               Icon(Icons.info_outline, color: Colors.orange),
               SizedBox(width: 8),
-              Text('केवल PDF / JPG / PNG (अधिकतम 5 MB)', style: TextStyle(color: Colors.orange, fontSize: 12)),
+              Expanded(child: Text('केवल PDF / JPG / PNG (अधिकतम 20 KB)', style: TextStyle(color: Colors.orange, fontSize: 12))),
             ],
           ),
         ),
@@ -394,7 +604,7 @@ class _ApplyHonourScreenState extends State<ApplyHonourScreen> {
     );
   }
 
-  Widget _buildUploadBox(String title, String subtitle) {
+  Widget _buildUploadBox(String title, String subtitle, {bool isPhoto = false}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -421,8 +631,10 @@ class _ApplyHonourScreenState extends State<ApplyHonourScreen> {
             ),
           ),
           TextButton(
-            onPressed: () {},
-            child: const Text('अपलोड करें', style: TextStyle(color: ThemeConfig.primary, fontWeight: FontWeight.bold)),
+            onPressed: isPhoto ? _pickImage : () {},
+            child: _isUploading && isPhoto
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : Text(_photoUrl != null && isPhoto ? 'बदलें' : 'अपलोड करें', style: const TextStyle(color: ThemeConfig.primary, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -446,6 +658,9 @@ class _ApplyHonourScreenState extends State<ApplyHonourScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (_photoUrl != null)
+                  Center(child: CircleAvatar(radius: 40, backgroundImage: NetworkImage(_photoUrl!))),
+                const SizedBox(height: 16),
                 _buildReviewRow('नाम:', _nameCtrl.text),
                 if (!widget.isBhamashah) _buildReviewRow('श्रेणी:', _selectedCategory),
                 if (!widget.isBhamashah) _buildReviewRow('उपलब्धि:', _achievementCtrl.text),

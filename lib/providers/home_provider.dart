@@ -35,28 +35,7 @@ class HomeProvider extends ChangeNotifier {
         _notices = (noticeResponse.data as List)
             .map((e) => NoticeModel.fromJson(e))
             .toList();
-      
-  void toggleLikeLocally(int postId, {required bool isLiked, required int likesCount}) {
-    final index = _posts.indexWhere((p) => p.id == postId);
-    if (index != -1) {
-      var jsonMap = _posts[index].toJson();
-      jsonMap['is_liked'] = isLiked;
-      jsonMap['likes_count'] = likesCount;
-      _posts[index] = PostModel.fromJson(jsonMap);
-      notifyListeners();
-    }
-  }
-
-  void incrementCommentCountLocally(int postId) {
-    final index = _posts.indexWhere((p) => p.id == postId);
-    if (index != -1) {
-      var jsonMap = _posts[index].toJson();
-      jsonMap['comments_count'] = (jsonMap['comments_count'] ?? 0) + 1;
-      _posts[index] = PostModel.fromJson(jsonMap);
-      notifyListeners();
-    }
-  }
-}
+      }
 
       if (postResponse.statusCode == 200) {
         final data = postResponse.data;
@@ -64,151 +43,25 @@ class HomeProvider extends ChangeNotifier {
           _posts = (data['items'] as List)
               .map((e) => PostModel.fromJson(e))
               .toList();
-        
-  void toggleLikeLocally(int postId, {required bool isLiked, required int likesCount}) {
-    final index = _posts.indexWhere((p) => p.id == postId);
-    if (index != -1) {
-      var jsonMap = _posts[index].toJson();
-      jsonMap['is_liked'] = isLiked;
-      jsonMap['likes_count'] = likesCount;
-      _posts[index] = PostModel.fromJson(jsonMap);
-      notifyListeners();
-    }
-  }
-
-  void incrementCommentCountLocally(int postId) {
-    final index = _posts.indexWhere((p) => p.id == postId);
-    if (index != -1) {
-      var jsonMap = _posts[index].toJson();
-      jsonMap['comments_count'] = (jsonMap['comments_count'] ?? 0) + 1;
-      _posts[index] = PostModel.fromJson(jsonMap);
-      notifyListeners();
-    }
-  }
-}
-      
-  void toggleLikeLocally(int postId, {required bool isLiked, required int likesCount}) {
-    final index = _posts.indexWhere((p) => p.id == postId);
-    if (index != -1) {
-      var jsonMap = _posts[index].toJson();
-      jsonMap['is_liked'] = isLiked;
-      jsonMap['likes_count'] = likesCount;
-      _posts[index] = PostModel.fromJson(jsonMap);
-      notifyListeners();
-    }
-  }
-
-  void incrementCommentCountLocally(int postId) {
-    final index = _posts.indexWhere((p) => p.id == postId);
-    if (index != -1) {
-      var jsonMap = _posts[index].toJson();
-      jsonMap['comments_count'] = (jsonMap['comments_count'] ?? 0) + 1;
-      _posts[index] = PostModel.fromJson(jsonMap);
-      notifyListeners();
-    }
-  }
-}
+        }
+      }
     } catch (e) {
       _error = 'सर्वर रखरखाव के अधीन है, इसे जल्द ही अपडेट किया जाएगा।';
       print(e);
     } finally {
       _isLoading = false;
       notifyListeners();
-    
-  void toggleLikeLocally(int postId, {required bool isLiked, required int likesCount}) {
-    final index = _posts.indexWhere((p) => p.id == postId);
-    if (index != -1) {
-      var jsonMap = _posts[index].toJson();
-      jsonMap['is_liked'] = isLiked;
-      jsonMap['likes_count'] = likesCount;
-      _posts[index] = PostModel.fromJson(jsonMap);
-      notifyListeners();
     }
   }
-
-  void incrementCommentCountLocally(int postId) {
-    final index = _posts.indexWhere((p) => p.id == postId);
-    if (index != -1) {
-      var jsonMap = _posts[index].toJson();
-      jsonMap['comments_count'] = (jsonMap['comments_count'] ?? 0) + 1;
-      _posts[index] = PostModel.fromJson(jsonMap);
-      notifyListeners();
-    }
-  }
-}
-  
-  void toggleLikeLocally(int postId, {required bool isLiked, required int likesCount}) {
-    final index = _posts.indexWhere((p) => p.id == postId);
-    if (index != -1) {
-      var jsonMap = _posts[index].toJson();
-      jsonMap['is_liked'] = isLiked;
-      jsonMap['likes_count'] = likesCount;
-      _posts[index] = PostModel.fromJson(jsonMap);
-      notifyListeners();
-    }
-  }
-
-  void incrementCommentCountLocally(int postId) {
-    final index = _posts.indexWhere((p) => p.id == postId);
-    if (index != -1) {
-      var jsonMap = _posts[index].toJson();
-      jsonMap['comments_count'] = (jsonMap['comments_count'] ?? 0) + 1;
-      _posts[index] = PostModel.fromJson(jsonMap);
-      notifyListeners();
-    }
-  }
-}
 
   void updatePostLocally(PostModel updatedPost) {
     final index = _posts.indexWhere((p) => p.id == updatedPost.id);
     if (index != -1) {
       _posts[index] = updatedPost;
       notifyListeners();
-    
-  void toggleLikeLocally(int postId, {required bool isLiked, required int likesCount}) {
-    final index = _posts.indexWhere((p) => p.id == postId);
-    if (index != -1) {
-      var jsonMap = _posts[index].toJson();
-      jsonMap['is_liked'] = isLiked;
-      jsonMap['likes_count'] = likesCount;
-      _posts[index] = PostModel.fromJson(jsonMap);
-      notifyListeners();
     }
   }
-
-  void incrementCommentCountLocally(int postId) {
-    final index = _posts.indexWhere((p) => p.id == postId);
-    if (index != -1) {
-      var jsonMap = _posts[index].toJson();
-      jsonMap['comments_count'] = (jsonMap['comments_count'] ?? 0) + 1;
-      _posts[index] = PostModel.fromJson(jsonMap);
-      notifyListeners();
-    }
-  }
-}
   
-  void toggleLikeLocally(int postId, {required bool isLiked, required int likesCount}) {
-    final index = _posts.indexWhere((p) => p.id == postId);
-    if (index != -1) {
-      var jsonMap = _posts[index].toJson();
-      jsonMap['is_liked'] = isLiked;
-      jsonMap['likes_count'] = likesCount;
-      _posts[index] = PostModel.fromJson(jsonMap);
-      notifyListeners();
-    }
-  }
-
-  void incrementCommentCountLocally(int postId) {
-    final index = _posts.indexWhere((p) => p.id == postId);
-    if (index != -1) {
-      var jsonMap = _posts[index].toJson();
-      jsonMap['comments_count'] = (jsonMap['comments_count'] ?? 0) + 1;
-      _posts[index] = PostModel.fromJson(jsonMap);
-      notifyListeners();
-    }
-  }
-}
-
   void toggleLikeLocally(int postId, {required bool isLiked, required int likesCount}) {
     final index = _posts.indexWhere((p) => p.id == postId);
     if (index != -1) {
