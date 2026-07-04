@@ -12,6 +12,7 @@ import 'providers/forms_provider.dart';
 import 'providers/news_provider.dart';
 import 'providers/honours_provider.dart';
 import 'providers/membership_provider.dart';
+import 'providers/complaint_provider.dart';
 import 'views/splash/splash_screen.dart';
 import 'views/auth/login_screen.dart';
 import 'views/main/main_shell.dart';
@@ -39,6 +40,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => NewsProvider()),
         ChangeNotifierProvider(create: (_) => HonoursProvider()),
         ChangeNotifierProvider(create: (_) => MembershipProvider()),
+        ChangeNotifierProvider(create: (_) => ComplaintProvider()),
       ],
       child: const MyApp(),
     ),
