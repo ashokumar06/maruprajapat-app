@@ -79,26 +79,32 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              const CircleAvatar(
-                                radius: 20,
-                                backgroundColor: Colors.white,
-                                backgroundImage: AssetImage(
-                                  'assets/images/logo.png',
+                          Expanded(
+                            child: Row(
+                              children: [
+                                const CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor: Colors.white,
+                                  backgroundImage: AssetImage(
+                                    'assets/images/logo.png',
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                displayText,
-                                style: const TextStyle(
-                                  color: ThemeConfig.primary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                  letterSpacing: 0.5,
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    displayText,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: ThemeConfig.primary,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                           Row(
                             children: [
