@@ -35,6 +35,9 @@ class _NewComplaintScreenState extends State<NewComplaintScreen> {
     {'value': 'sanitation', 'hi': 'स्वच्छता', 'en': 'Sanitation'},
     {'value': 'community_hall', 'hi': 'सामुदायिक भवन', 'en': 'Community Hall'},
     {'value': 'hostel', 'hi': 'छात्रावास', 'en': 'Hostel'},
+    {'value': 'exam', 'hi': 'परीक्षा', 'en': 'Exam'},
+    {'value': 'result', 'hi': 'परिणाम', 'en': 'Result'},
+    {'value': 'app_feature', 'hi': 'ऐप फीचर', 'en': 'App Feature'},
     {'value': 'other', 'hi': 'अन्य', 'en': 'Other'},
   ];
 

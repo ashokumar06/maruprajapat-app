@@ -211,9 +211,15 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                     final ok = await context.read<ComplaintProvider>().updateStatus(
                       _complaint!.id, selectedStatus!, note: noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim(),
                     );
-                    if (mounted && ok) {
-                      widget.onRefresh?.call();
-                      _load();
+                    if (mounted) {
+                      if (ok) {
+                        widget.onRefresh?.call();
+                        _load();
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_t('स्थिति अपडेट हो गई', 'Status updated successfully')), backgroundColor: ThemeConfig.success));
+                      } else {
+                        final err = context.read<ComplaintProvider>().error;
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err ?? _t('त्रुटि हुई', 'An error occurred')), backgroundColor: ThemeConfig.error));
+                      }
                     }
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: ThemeConfig.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -265,100 +271,80 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: ThemeConfig.border)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // Header Info
+            Row(
+              children: [
+                if (c.complaintNumber != null)
+                  Text('#${c.complaintNumber}', style: const TextStyle(fontWeight: FontWeight.bold, color: ThemeConfig.primary, fontSize: 16)),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(color: sColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                  child: Text(_statusLabel(c.status), style: TextStyle(color: sColor, fontWeight: FontWeight.bold, fontSize: 12)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(c.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: ThemeConfig.textPrimary)),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.calendar_today_outlined, size: 16, color: ThemeConfig.textHint),
+                const SizedBox(width: 6),
+                Text(dateStr, style: const TextStyle(color: ThemeConfig.textHint, fontSize: 14)),
+              ],
+            ),
+            if (c.location != null && c.location!.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      if (c.complaintNumber != null)
-                        Text('#${c.complaintNumber}', style: const TextStyle(fontWeight: FontWeight.bold, color: ThemeConfig.primary, fontSize: 16)),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                        decoration: BoxDecoration(color: sColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                        child: Text(_statusLabel(c.status), style: TextStyle(color: sColor, fontWeight: FontWeight.bold, fontSize: 12)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(c.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: ThemeConfig.textPrimary)),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.calendar_today_outlined, size: 14, color: ThemeConfig.textHint),
-                      const SizedBox(width: 4),
-                      Text(dateStr, style: const TextStyle(color: ThemeConfig.textHint, fontSize: 13)),
-                    ],
-                  ),
-                  if (c.location != null && c.location!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on_outlined, size: 14, color: ThemeConfig.textHint),
-                        const SizedBox(width: 4),
-                        Expanded(child: Text(c.location!, style: const TextStyle(color: ThemeConfig.textHint, fontSize: 13))),
-                      ],
-                    ),
-                  ],
+                  const Icon(Icons.location_on_outlined, size: 16, color: ThemeConfig.textHint),
+                  const SizedBox(width: 6),
+                  Expanded(child: Text(c.location!, style: const TextStyle(color: ThemeConfig.textHint, fontSize: 14))),
                 ],
               ),
-            ),
-            const SizedBox(height: 16),
+            ],
+            const SizedBox(height: 24),
+            const Divider(color: ThemeConfig.border),
+            const SizedBox(height: 20),
 
             // Complainant Info (Admin view)
-            if (widget.isAdmin && c.userName != null)
-              Container(
-                padding: const EdgeInsets.all(16),
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: ThemeConfig.border)),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 22,
-                      backgroundColor: ThemeConfig.background,
-                      backgroundImage: c.userPhoto != null ? NetworkImage(c.userPhoto!) : null,
-                      child: c.userPhoto == null ? const Icon(Icons.person, color: ThemeConfig.textHint) : null,
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(_t('शिकायतकर्ता', 'Complainant'), style: const TextStyle(color: ThemeConfig.textHint, fontSize: 11)),
-                        Text(c.userName!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-            // Description
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: ThemeConfig.border)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            if (widget.isAdmin && c.userName != null) ...[
+              Row(
                 children: [
-                  Text(_t('विवरण', 'Description'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: ThemeConfig.textPrimary)),
-                  const SizedBox(height: 8),
-                  Text(c.description, style: const TextStyle(fontSize: 14, color: ThemeConfig.textSecondary, height: 1.5)),
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: ThemeConfig.border,
+                    backgroundImage: c.userPhoto != null ? NetworkImage(c.userPhoto!) : null,
+                    child: c.userPhoto == null ? const Icon(Icons.person, color: ThemeConfig.textHint) : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_t('शिकायतकर्ता', 'Complainant'), style: const TextStyle(color: ThemeConfig.textHint, fontSize: 12)),
+                      Text(c.userName!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    ],
+                  ),
                 ],
               ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 24),
+            ],
+
+            // Description
+            Text(_t('विवरण', 'Description'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: ThemeConfig.textPrimary)),
+            const SizedBox(height: 8),
+            Text(c.description, style: const TextStyle(fontSize: 15, color: ThemeConfig.textSecondary, height: 1.5)),
+            const SizedBox(height: 24),
 
             // Images
             if (c.imageUrls != null && c.imageUrls!.isNotEmpty) ...[
-              Text(_t('संलग्नक', 'Attachments'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: ThemeConfig.textPrimary)),
-              const SizedBox(height: 8),
+              Text(_t('संलग्नक', 'Attachments'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: ThemeConfig.textPrimary)),
+              const SizedBox(height: 12),
               SizedBox(
                 height: 100,
                 child: ListView.builder(
@@ -366,7 +352,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                   itemCount: c.imageUrls!.length,
                   itemBuilder: (ctx, i) {
                     return Padding(
-                      padding: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.only(right: 12),
                       child: GestureDetector(
                         onTap: () => _showFullImage(c.imageUrls![i]),
                         child: ClipRRect(
@@ -378,12 +364,12 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                   },
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
             ],
 
             // Status Timeline
-            Text(_t('स्थिति अपडेट', 'Status Updates'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: ThemeConfig.textPrimary)),
-            const SizedBox(height: 12),
+            Text(_t('स्थिति अपडेट', 'Status Updates'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: ThemeConfig.textPrimary)),
+            const SizedBox(height: 16),
             ...c.statusHistory.asMap().entries.map((entry) {
               final h = entry.value;
               final isLast = entry.key == c.statusHistory.length - 1;
@@ -399,8 +385,8 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                       child: Column(
                         children: [
                           Container(
-                            width: 12,
-                            height: 12,
+                            width: 14,
+                            height: 14,
                             decoration: BoxDecoration(color: hColor, shape: BoxShape.circle),
                           ),
                           if (!isLast)
@@ -411,20 +397,20 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                     // Content
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.only(bottom: 20),
+                        padding: const EdgeInsets.only(bottom: 24),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(_statusLabel(h.newStatus), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: hColor)),
+                            Text(_statusLabel(h.newStatus), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: hColor)),
                             const SizedBox(height: 4),
-                            Text(hDate, style: const TextStyle(color: ThemeConfig.textHint, fontSize: 12)),
+                            Text(hDate, style: const TextStyle(color: ThemeConfig.textHint, fontSize: 13)),
                             if (h.note != null && h.note!.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(h.note!, style: const TextStyle(color: ThemeConfig.textSecondary, fontSize: 13)),
+                              const SizedBox(height: 6),
+                              Text(h.note!, style: const TextStyle(color: ThemeConfig.textSecondary, fontSize: 14)),
                             ],
                             if (h.changedByName != null) ...[
-                              const SizedBox(height: 2),
-                              Text('${_t('द्वारा', 'By')}: ${h.changedByName}', style: const TextStyle(color: ThemeConfig.textHint, fontSize: 11)),
+                              const SizedBox(height: 4),
+                              Text('${_t('द्वारा', 'By')}: ${h.changedByName}', style: const TextStyle(color: ThemeConfig.textHint, fontSize: 12)),
                             ],
                           ],
                         ),
@@ -435,20 +421,20 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
               );
             }),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
 
             // Cancel button (for non-admin, only if not resolved/closed/cancelled)
             if (canCancel)
               SizedBox(
                 width: double.infinity,
-                height: 48,
+                height: 50,
                 child: OutlinedButton(
                   onPressed: _showCancelDialog,
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: ThemeConfig.error),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: Text(_t('शिकायत रद्द करें', 'Cancel Complaint'), style: const TextStyle(color: ThemeConfig.error, fontWeight: FontWeight.bold)),
+                  child: Text(_t('शिकायत रद्द करें', 'Cancel Complaint'), style: const TextStyle(color: ThemeConfig.error, fontWeight: FontWeight.bold, fontSize: 15)),
                 ),
               ),
             const SizedBox(height: 40),
