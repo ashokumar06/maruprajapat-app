@@ -8,6 +8,7 @@ import '../honours/honours_screen.dart';
 import 'notifications_tab.dart';
 import '../home/community_groups_tab.dart';
 import '../explore/explore_screen.dart';
+import '../gallery/gallery_screen.dart';
 
 import 'package:url_launcher/url_launcher.dart';
 
@@ -34,6 +35,7 @@ class _MainShellState extends State<MainShell> {
     const NewsScreen(),
     const HonoursScreen(),
     const CommunityGroupsTab(),
+    const GalleryScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -99,6 +101,7 @@ class _MainShellState extends State<MainShell> {
                         _buildNavItem(2, Icons.article_outlined, Icons.article, isEnglish ? 'News' : 'न्यूज़'),
                         _buildNavItem(3, Icons.military_tech_outlined, Icons.military_tech, isEnglish ? 'Honours' : 'गौरव'),
                         _buildNavItem(4, Icons.people_outline, Icons.people, isEnglish ? 'Communities' : 'समुदाय'),
+                        _buildNavItem(5, Icons.photo_library_outlined, Icons.photo_library, isEnglish ? 'Gallery' : 'गैलरी'),
                       ],
                     ),
                   ),
@@ -165,7 +168,7 @@ class _MainShellState extends State<MainShell> {
             label,
             style: TextStyle(
               color: color,
-              fontSize: 12,
+              fontSize: 10.5,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
